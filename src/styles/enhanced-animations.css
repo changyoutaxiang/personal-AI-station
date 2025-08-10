@@ -1,0 +1,253 @@
+/* ================================================
+   Digital Brain - 增强交互体验动画系统
+   第三步：增强交互体验 - 添加hover效果和过渡动画
+   ================================================ */
+
+/* 任务卡片悬浮动画 */
+.task-card {
+  transition: all var(--duration-normal) var(--ease-in-out);
+  transform: translateY(0);
+}
+
+
+
+/* 任务完成动画 */
+@keyframes taskComplete {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+}
+
+.task-completed {
+  animation: taskComplete var(--duration-fast) var(--ease-out);
+}
+
+/* 项目卡片玻璃拟态增强 */
+.project-card {
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
+  transition: all var(--duration-normal) var(--ease-in-out);
+  border: 1px solid var(--color-border);
+}
+
+
+
+/* 按钮点击反馈 */
+.btn-press {
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+
+
+.btn-press:active {
+  transform: translateY(0);
+}
+
+/* 删除按钮动画 */
+.delete-btn {
+  opacity: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+  transform: scale(0.8);
+}
+
+
+
+/* 完成状态切换动画 */
+@keyframes checkmarkPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.checkmark-animation {
+  animation: checkmarkPop var(--duration-fast) var(--ease-bounce);
+}
+
+/* 加载骨架屏 */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.loading-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-background-elevated) 0px,
+    var(--color-border) 40px,
+    var(--color-background-elevated) 80px
+  );
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* 弹出窗口动画 */
+@keyframes modalSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-enter {
+  animation: modalSlideIn var(--duration-normal) var(--ease-out);
+}
+
+/* 日历视图悬停效果 */
+.calendar-day {
+  transition: all var(--duration-normal) var(--ease-in-out);
+}
+
+
+
+/* 输入框焦点动画 */
+.input-focus {
+  transition: all var(--duration-normal) var(--ease-in-out);
+}
+
+.input-focus:focus {
+  transform: scale(1.02);
+  box-shadow: 0 0 0 3px var(--color-primary-ghost);
+}
+
+/* 标签动画 */
+.tag-hover {
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+
+
+/* 进度指示器 */
+@keyframes progressFill {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: var(--progress-width);
+  }
+}
+
+.progress-bar {
+  animation: progressFill var(--duration-slow) var(--ease-out);
+}
+
+/* 内容展开动画 */
+@keyframes expandDown {
+  0% {
+    max-height: 0;
+    opacity: 0;
+  }
+  100% {
+    max-height: 500px;
+    opacity: 1;
+  }
+}
+
+.expand-animation {
+  animation: expandDown var(--duration-normal) var(--ease-out);
+  overflow: hidden;
+}
+
+/* 空状态动画 */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.empty-state {
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+/* 响应式优化 - 移动端减少动画 */
+@media (prefers-reduced-motion: reduce) {
+  .task-card,
+  .project-card,
+  .btn-press,
+  .calendar-day,
+  .input-focus,
+  .tag-hover {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) {
+  .delete-btn {
+    opacity: 1;
+    transform: scale(1);
+  }
+  
+  .task-card:hover {
+    transform: none;
+  }
+  
+  .project-card:hover {
+    transform: none;
+  }
+}
+
+/* 加载动画增强 */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 成功提示动画 */
+@keyframes successPop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.success-message {
+  animation: successPop var(--duration-fast) var(--ease-bounce);
+}

@@ -1,0 +1,73 @@
+
+> digital-brain@0.1.0 dev
+> next dev --turbopack
+
+   ▲ Next.js 15.4.4 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://172.20.10.2:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 897ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1965ms
+🚀 开始初始化Digital Brain应用...
+ GET / 200 in 2192ms
+💾 正在启动备份系统...
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_16-34-36-856Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_17-57-07-963Z.db
+🕐 定时备份已设置，间隔: 30 分钟
+✅ 自动备份系统已启动
+✅ Digital Brain应用初始化完成！
+ ✓ Compiled /api/weekly-report in 99ms
+📊 开始生成智能周报...
+✅ 周报生成成功
+ POST /api/weekly-report 200 in 21407ms
+ GET / 200 in 53ms
+ POST / 200 in 29ms
+ POST / 200 in 77ms
+ GET / 200 in 57ms
+ POST / 200 in 28ms
+ POST / 200 in 31ms
+ ✓ Compiled /favicon.ico in 96ms
+ GET /favicon.ico 200 in 324ms
+ POST / 200 in 32ms
+ POST / 200 in 21ms
+ POST / 200 in 15627ms
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_16-49-35-720Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_18-27-08-064Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_17-09-43-371Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_18-59-44-647Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_17-09-43-370Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_19-32-04-738Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_17-09-43-372Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_20-04-24-820Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_17-19-35-703Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_20-36-46-052Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_17-39-43-394Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_21-15-55-005Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_17-39-43-396Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_21-45-55-021Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_17-39-43-391Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_22-17-47-048Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_17-39-43-395Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_22-50-07-910Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_17-57-07-963Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_23-22-28-530Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_18-27-08-064Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-29_23-54-47-144Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_18-59-44-647Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-30_00-26-45-230Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_19-32-04-738Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-30_00-59-35-997Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_20-04-24-820Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-30_01-31-44-135Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_20-36-46-052Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-30_02-10-39-468Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_21-15-55-005Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-30_02-51-27-589Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_21-45-55-021Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-30_03-21-27-531Z.db
+🗑️ 已删除旧备份: digital-brain_backup_2025-07-29_22-17-47-048Z.db
+✅ 备份创建成功: digital-brain_backup_2025-07-30_03-51-27-550Z.db
+[?25h

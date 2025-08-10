@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Pre-commit contrast guard
+# Blocks commits that introduce low-contrast color patterns.
+# Skip with: SKIP_CONTRAST_CHECK=1 git commit -m "..."
+
+if [ -n "$SKIP_CONTRAST_CHECK" ]; then
+  echo "[contrast-check] Skipped via SKIP_CONTRAST_CHECK"
+  exit 0
+fi
+
+# Only check staged files that are likely to contain UI code
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(tsx|ts|jsx|js|css|scss|sass)$')
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+# Forbidden patterns (Extended Regular Expressions)
+# 1) Semi-transparent white RGBA
+PATTERN_RGBA_WHITE='rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*0\.[0-9]+\s*\)'
+# 2) Tailwind white borders
+PATTERN_BORDER_WHITE='border-white/(10|20|30|40)'
+# 3) Generic low-opacity Tailwind utilities on bg/text/border (e.g., bg-blue-500/10)
+PATTERN_GENERIC_OPACITY='(bg|text|border)-[A-Za-z0-9-]+/(5|10|15|20|25|30|35|40)'
+# 4) Low-contrast text shades in gray-like scales (300 often fails contrast in light modes)
+PATTERN_TEXT_LOW_CONTRAST='text-(slate|gray|zinc|neutral|stone|white)/(200|300)'
+
+FAIL=0
+
+check_file() {
+  local file="$1"
+  local matches=()
+
+  while IFS= read -r line; do matches+=("$line"); done < <(grep -nE "$PATTERN_RGBA_WHITE" "$file" 2>/dev/null || true)
+  while IFS= read -r line; do matches+=("$line"); done < <(grep -nE "$PATTERN_BORDER_WHITE" "$file" 2>/dev/null || true)
+  while IFS= read -r line; do matches+=("$line"); done < <(grep -nE "$PATTERN_GENERIC_OPACITY" "$file" 2>/dev/null || true)
+  while IFS= read -r line; do matches+=("$line"); done < <(grep -nE "$PATTERN_TEXT_LOW_CONTRAST" "$file" 2>/dev/null || true)
+
+  if [ ${#matches[@]} -gt 0 ]; then
+    echo "\n[contrast-check] Potential low-contrast patterns found in: $file" >&2
+    for m in "${matches[@]}"; do
+      echo "  $m" >&2
+    done
+    FAIL=1
+  fi
+}
+
+for f in $STAGED_FILES; do
+  # Only check if the file is staged (may be deleted/renamed)
+  if [ -f "$f" ]; then
+    check_file "$f"
+  fi
+done
+
+if [ $FAIL -ne 0 ]; then
+  echo "\n[contrast-check] Commit blocked. Replace hardcoded/translucent colors with theme variables (e.g., var(--tag-*-bg), var(--card-border), var(--text-primary))." >&2
+  echo "To bypass temporarily: SKIP_CONTRAST_CHECK=1 git commit -m '...'
+To set up hooks: git config core.hooksPath .githooks" >&2
+  exit 1
+fi
+
+exit 0
+
