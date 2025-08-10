@@ -444,7 +444,13 @@
   /* Dopamine 主题（明色） */
 [data-theme="dopamine"] {
   /* 中性色（完全对齐现有基准，保证对比度与可用性） */
-  --background: #ffffff;
+  --background: linear-gradient(135deg, 
+    #fef7f1 0%,     /* 微妙的橙色傾向 */
+    #fff9f7 25%,    /* 温暖的粉色傾向 */
+    #fef3f1 50%,    /* 柔和的粉橙色 */
+    #fff8f6 75%,    /* 轻微的橙色调 */
+    #fffbfa 100%    /* 接近纯白但带温暖 */
+  );
   --foreground: #0f172a;
 
   /* 主题色彩变量 - 对齐现有命名 */
@@ -465,9 +471,9 @@
   --dopamine-indigo-accessible: #4F46E5;   /* 对比度改进版 */
 
   /* 思维卡片背景 - 对齐现有命名 */
-  --card-glass: rgba(250, 250, 250, 0.9);
-  --card-border: rgba(255, 107, 71, 0.3);  /* 使用主色 */
-  --card-shadow: 0 8px 32px 0 rgba(255, 107, 71, 0.15);
+  --card-glass: rgba(254, 249, 247, 0.95);  /* 微妙温暖色调 */
+  --card-border: rgba(255, 107, 71, 0.4);   /* 增强边框颜色 */
+  --card-shadow: 0 8px 32px 0 rgba(255, 107, 71, 0.2), 0 2px 8px 0 rgba(255, 107, 71, 0.1);
 
   /* 文本颜色 - 对齐现有命名 */
   --text-primary: #0f172a;
