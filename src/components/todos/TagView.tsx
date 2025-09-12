@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Briefcase, Users, Target, Building, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight, Briefcase, Users, Target, Building, Settings, Clock } from 'lucide-react';
 import { Todo, Category } from '@/types/todo';
 import { TodoItem } from './TodoItem';
 
@@ -48,6 +48,13 @@ const tagConfig = {
     gradient: 'from-gray-400 to-gray-500',
     bg: 'bg-gray-50',
     border: 'border-gray-200'
+  },
+  overdue: {
+    label: '逾期任务',
+    icon: Clock,
+    gradient: 'from-red-400 to-orange-500',
+    bg: 'bg-red-50',
+    border: 'border-red-200'
   }
 };
 
@@ -57,7 +64,8 @@ export function TagView({ todos, onToggle, onDelete, onUpdate, operationLoading 
     life: false,
     study: false,
     health: false,
-    other: false
+    other: false,
+    overdue: false
   });
 
   // Group todos by tags (a todo can appear in multiple groups)
@@ -66,7 +74,8 @@ export function TagView({ todos, onToggle, onDelete, onUpdate, operationLoading 
     life: todos.filter(todo => todo.tags.includes('life')),
     study: todos.filter(todo => todo.tags.includes('study')),
     health: todos.filter(todo => todo.tags.includes('health')),
-    other: todos.filter(todo => todo.tags.includes('other'))
+    other: todos.filter(todo => todo.tags.includes('other')),
+    overdue: todos.filter(todo => todo.tags.includes('overdue'))
   };
 
   // Get todos without any tags

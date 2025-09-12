@@ -1,5 +1,5 @@
 export type Priority = 'high' | 'medium' | 'low';
-export type Category = 'work' | 'life' | 'study' | 'health' | 'other';
+export type Category = 'work' | 'life' | 'study' | 'health' | 'other' | 'overdue';
 export type RepeatType = 'none' | 'daily' | 'weekly' | 'monthly';
 
 export interface SubTask {

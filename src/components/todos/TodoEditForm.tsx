@@ -15,7 +15,8 @@ const categoryColors = {
   life: 'bg-green-100 text-green-800',
   study: 'bg-purple-100 text-purple-800',
   health: 'bg-pink-100 text-pink-800',
-  other: 'bg-gray-100 text-gray-800'
+  other: 'bg-gray-100 text-gray-800',
+  overdue: 'bg-red-100 text-red-800'
 };
 
 const categoryLabels = {
@@ -23,7 +24,8 @@ const categoryLabels = {
   life: 'AIEC团队',
   study: '训战营',
   health: '组织赋能',
-  other: '业务赋能'
+  other: '业务赋能',
+  overdue: '逾期任务'
 };
 
 export function TodoEditForm({ todo, onUpdate, onCancel }: TodoEditFormProps) {
