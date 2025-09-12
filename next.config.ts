@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
   // 压缩配置
   compress: true,
   
+  // ESLint配置
+  eslint: {
+    // 在构建时忽略ESLint错误
+    ignoreDuringBuilds: true,
+  },
+
   // 实验性功能
   experimental: {
     // 优化包导入

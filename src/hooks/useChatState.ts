@@ -8,22 +8,10 @@ import type {
   Conversation, 
   Message, 
   PromptTemplate, 
-  ChatResponse 
+  ChatResponse,
+  Tag 
 } from '@/components/agent/types';
-
-// 文件夹接口定义
-interface ConversationFolder {
-  id: number;
-  name: string;
-  description?: string;
-  color: string;
-  icon: string;
-  position: number;
-  parent_id?: number;
-  created_at: string;
-  updated_at: string;
-  children?: ConversationFolder[];
-}
+import type { ConversationFolder } from '@/lib/db';
 
 // 状态接口定义
 export interface ChatState {
@@ -52,8 +40,9 @@ export interface ChatState {
   searchKeyword: string;
   historyLimit: number;
   
-  // UI 控制
-  sidebarCollapsed: boolean;
+  // 标签相关
+  tags: Tag[];
+  selectedTags: number[];
 }
 
 // 状态操作接口
@@ -78,7 +67,6 @@ export interface ChatActions {
   setSelectedTemplate: (template: PromptTemplate | null) => void;
   setSearchKeyword: (keyword: string) => void;
   setHistoryLimit: (limit: number) => void;
-  setSidebarCollapsed: (collapsed: boolean) => void;
   
   // 数据加载
   loadConversations: () => Promise<void>;
@@ -156,7 +144,8 @@ const initialState: ChatState = {
   error: null,
   searchKeyword: '',
   historyLimit: 20,
-  sidebarCollapsed: false,
+  tags: [],
+  selectedTags: [],
 };
 
 export function useChatState(): ChatState & ChatActions {
@@ -441,7 +430,7 @@ export function useChatState(): ChatState & ChatActions {
 
     // 删除最后一条助手回复（如果有）
     const lastAssistantMessage = state.messages.filter(msg => msg.role === 'assistant').pop();
-    if (lastAssistantMessage && lastAssistantMessage.created_at > lastUserMessage.created_at) {
+    if (lastAssistantMessage && lastAssistantMessage.id > lastUserMessage.id) {
       await deleteMessage(lastAssistantMessage.id);
     }
 
@@ -484,9 +473,7 @@ export function useChatState(): ChatState & ChatActions {
     updateState({ historyLimit: limit });
   }, [updateState]);
   
-  const setSidebarCollapsed = useCallback((collapsed: boolean) => {
-    updateState({ sidebarCollapsed: collapsed });
-  }, [updateState]);
+
   
 
   
@@ -662,7 +649,6 @@ export function useChatState(): ChatState & ChatActions {
     setSelectedTemplate,
     setSearchKeyword,
     setHistoryLimit,
-    setSidebarCollapsed,
     loadConversations,
     loadMessages,
     loadTemplates,

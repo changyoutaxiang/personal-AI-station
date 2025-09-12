@@ -289,26 +289,27 @@ export class OpenRouterClient {
 }
 
 /**
- * 创建默认的OpenRouter客户端实例
+ * 创建默认的OpenRouter客户端实例（支持动态API Key）
  */
-export function createOpenRouterClient(options?: OpenRouterOptions): OpenRouterClient {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY环境变量未设置');
+export function createOpenRouterClient(apiKey?: string, options?: OpenRouterOptions): OpenRouterClient {
+  // 优先使用传入的API Key，其次使用环境变量
+  const effectiveApiKey = apiKey || process.env.OPENROUTER_API_KEY;
+  if (!effectiveApiKey) {
+    throw new Error('API Key未设置：请传入API Key或设置OPENROUTER_API_KEY环境变量');
   }
   
-  return new OpenRouterClient(apiKey, options);
+  return new OpenRouterClient(effectiveApiKey, options);
 }
 
 /**
- * 便捷的聊天完成函数
+ * 便捷的聊天完成函数（支持动态API Key）
  */
 export async function simpleChatCompletion(
   model: string,
   messages: OpenRouterMessage[],
-  options?: Partial<OpenRouterRequest & OpenRouterOptions>
+  options?: Partial<OpenRouterRequest & OpenRouterOptions & { apiKey?: string }>
 ): Promise<{ content: string; tokensUsed: number }> {
-  const client = createOpenRouterClient({
+  const client = createOpenRouterClient(options?.apiKey, {
     timeout: options?.timeout,
     maxRetries: options?.maxRetries,
     retryDelay: options?.retryDelay,

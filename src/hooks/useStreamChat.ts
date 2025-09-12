@@ -9,9 +9,9 @@ export interface StreamMessage {
   conversation_id: number;
   role: 'user' | 'assistant';
   content: string;
-  created_at: string;
   tokens_used?: number;
   isStreaming?: boolean;
+  [key: string]: unknown; // 索引签名，满足Message约束
 }
 
 export interface StreamChatState {
@@ -72,7 +72,7 @@ export function useStreamChat(): StreamChatState & StreamChatActions {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    let currentConversationId = conversationId;
+    let currentConversationId: number = conversationId || 0;
     let userMessage: StreamMessage | null = null;
     let assistantMessage: StreamMessage | null = null;
 
@@ -132,8 +132,7 @@ export function useStreamChat(): StreamChatState & StreamChatActions {
                   id: parsed.userMessage.id,
                   conversation_id: currentConversationId,
                   role: 'user',
-                  content: parsed.userMessage.content,
-                  created_at: parsed.userMessage.created_at
+                  content: parsed.userMessage.content
                 };
 
                 // 创建流式助手消息占位符
@@ -142,7 +141,6 @@ export function useStreamChat(): StreamChatState & StreamChatActions {
                   conversation_id: currentConversationId,
                   role: 'assistant',
                   content: '',
-                  created_at: new Date().toISOString(),
                   isStreaming: true
                 };
 
@@ -152,7 +150,9 @@ export function useStreamChat(): StreamChatState & StreamChatActions {
                 }
 
                 // 更新消息
-                onMessageUpdate(userMessage, assistantMessage);
+                if (userMessage) {
+                  onMessageUpdate(userMessage, assistantMessage);
+                }
                 break;
 
               case 'chunk':
@@ -166,7 +166,9 @@ export function useStreamChat(): StreamChatState & StreamChatActions {
                     ...assistantMessage,
                     content: fullContent
                   };
-                  onMessageUpdate(userMessage!, updatedAssistantMessage);
+                  if (userMessage && updatedAssistantMessage) {
+                    onMessageUpdate(userMessage, updatedAssistantMessage);
+                  }
                 }
                 break;
 
@@ -178,10 +180,11 @@ export function useStreamChat(): StreamChatState & StreamChatActions {
                     id: parsed.assistant.id,
                     content: parsed.assistant.content,
                     tokens_used: parsed.assistant.tokensUsed,
-                    created_at: parsed.assistant.created_at,
                     isStreaming: false
                   };
-                  onMessageUpdate(userMessage!, finalAssistantMessage);
+                  if (userMessage && finalAssistantMessage) {
+                    onMessageUpdate(userMessage, finalAssistantMessage);
+                  }
                 }
 
                 // 追踪成功事件

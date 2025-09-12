@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { generateQuestionsAction } from '@/lib/actions';
 import { trackEvent } from '@/lib/client-tracker';
 import { debug } from '@/lib/debug';
+import { InteractiveButton } from './interactive';
 
 interface AIQuestionsProps {
   content: string;
@@ -102,30 +103,24 @@ export default function AIQuestions({ content, onClose, onQuestionInsert }: AIQu
       <button
         onClick={handleGenerateQuestions}
         disabled={isLoading || !content.trim()}
-        className={`px-4 py-2 text-sm rounded-lg border transition-all duration-200 flex items-center gap-2 ${
+        className={`group relative w-12 h-12 rounded-full flex items-center justify-center font-medium transition-all duration-300 shadow-sm border-2 ${
           isLoading || !content.trim()
-            ? 'bg-gray-500/30 border-gray-500/50 text-gray-500 cursor-not-allowed' 
-            : 'bg-[var(--flow-secondary)]/20 border-[var(--flow-secondary)]/50 text-[var(--flow-secondary)] font-medium hover:bg-[var(--flow-secondary)]/30 hover:text-white'
+            ? 'bg-gray-100/80 text-gray-400 cursor-not-allowed shadow-none border-gray-200' 
+            : 'bg-gradient-to-br from-blue-500/10 to-blue-600/5 text-blue-600 border-blue-200/50 hover:from-blue-500/20 hover:to-blue-600/15 hover:border-blue-300/70 hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0 hover:scale-105'
         }`}
-        title="AI将对您的内容进行犀利提问"
       >
-        {isLoading ? (
-          <>
-            <span className="text-base animate-spin">⏳</span>
-            <span>思考中...</span>
-          </>
-        ) : (
-          <>
-            <span className="text-base">❓</span>
-            <span>提问</span>
-          </>
-        )}
+        <span className={`text-lg transition-transform duration-300 ${
+          isLoading ? '' : 'group-hover:scale-110 group-hover:bounce'
+        }`}>
+          {isLoading ? '⏳' : '❓'}
+        </span>
       </button>
 
       {/* 问题弹窗 */}
       {isVisible && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden" style={{
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={handleClose}></div>
+          <div className="relative rounded-lg shadow-xl max-w-2xl w-full max-h-[70vh] flex flex-col overflow-hidden" style={{
             background: 'var(--card-glass)',
             border: '1px solid var(--card-border)'
           }}>
@@ -160,7 +155,7 @@ export default function AIQuestions({ content, onClose, onQuestionInsert }: AIQu
             </div>
 
             {/* 内容区域 */}
-            <div className="p-4 max-h-96 overflow-y-auto">
+            <div className="p-4 flex-1 overflow-y-auto min-h-0">
               {isLoading ? (
                 <div className="text-center py-12">
                   {/* 生动的加载动画 */}

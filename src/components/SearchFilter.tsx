@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Filter, X, Clock, Tag, AlertCircle, CheckCircle2, Circle, ChevronDown } from 'lucide-react';
-import type { Todo } from '@/types/index';
+import type { Entry } from '@/types/index';
 
 interface SearchFilterProps {
-  todos: Todo[];
-  onFilteredTodos: (filteredTodos: Todo[]) => void;
+  todos: Entry[];
+  onFilteredTodos: (filteredTodos: Entry[]) => void;
   className?: string;
 }
 
@@ -125,13 +125,13 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
   }, []);
 
   // 过滤逻辑
-  const filterTodos = useCallback((todos: Todo[], filters: FilterState) => {
+  const filterTodos = useCallback((todos: Entry[], filters: FilterState) => {
     return todos.filter(todo => {
       // 搜索词过滤
       if (filters.searchTerm) {
         const searchTerm = filters.searchTerm.toLowerCase();
-        const titleMatch = todo.title.toLowerCase().includes(searchTerm);
-        const descriptionMatch = todo.description?.toLowerCase().includes(searchTerm) || false;
+        const titleMatch = todo.content.toLowerCase().includes(searchTerm);
+        const descriptionMatch = false; // Entry没有description属性
         const projectMatch = (todo.project_tag || '其他').toLowerCase().includes(searchTerm);
         
         if (!titleMatch && !descriptionMatch && !projectMatch) {
@@ -147,16 +147,16 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
         }
       }
 
-      // 状态过滤
-      if (filters.selectedStatuses.length > 0) {
-        if (!filters.selectedStatuses.includes(todo.status)) {
-          return false;
-        }
-      }
+      // 状态过滤 - Entry没有status属性，跳过此过滤
+      // if (filters.selectedStatuses.length > 0) {
+      //   if (!filters.selectedStatuses.includes(todo.status)) {
+      //     return false;
+      //   }
+      // }
 
-      // 优先级过滤
+      // 优先级过滤 - Entry没有priority属性，使用importance_tag
       if (filters.selectedPriorities.length > 0) {
-        if (!filters.selectedPriorities.includes(todo.priority)) {
+        if (!filters.selectedPriorities.includes(todo.importance_tag?.toString() || '0')) {
           return false;
         }
       }
@@ -167,9 +167,12 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
 
   // 应用过滤并更新结果
   useEffect(() => {
-    const filtered = filterTodos(todos, filterState);
-    onFilteredTodos(filtered);
-  }, [todos, filterState, filterTodos]);
+    // 只有当todos不为空时才进行过滤
+    if (todos.length > 0) {
+      const filtered = filterTodos(todos, filterState);
+      onFilteredTodos(filtered);
+    }
+  }, [todos, filterState, filterTodos, onFilteredTodos]);
 
   // 保存搜索历史
   const saveToHistory = (term: string, filters: Partial<FilterState>) => {

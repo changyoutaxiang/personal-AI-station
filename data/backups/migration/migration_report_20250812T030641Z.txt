@@ -1,0 +1,29 @@
+数据迁移报告
+================================
+迁移时间: 2025年 8月12日 星期二 11时06分42秒 CST
+目标版本: latest
+迁移时间戳: 20250812T030641Z
+
+迁移前数据:
+migration_timestamp=20250812T030641Z
+target_version=latest
+db_size=1531904
+todos_count=7
+okr_count=0
+entries_count=7
+todos_events_count=12
+okr_events_count=0
+
+迁移后数据:
+migration_timestamp=20250812T030641Z
+target_version=latest
+db_size=1540096
+todos_count=7
+okr_count=0
+entries_count=7
+todos_events_count=12
+okr_events_count=0
+
+迁移状态: 成功
+备份位置: data/backups/migration
+================================

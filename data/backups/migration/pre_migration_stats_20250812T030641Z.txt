@@ -1,0 +1,8 @@
+migration_timestamp=20250812T030641Z
+target_version=latest
+db_size=1531904
+todos_count=7
+okr_count=0
+entries_count=7
+todos_events_count=12
+okr_events_count=0

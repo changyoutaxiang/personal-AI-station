@@ -1,6 +1,8 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
+import { debug } from './debug';
+import type { Entry, CreateEntry } from '@/types/index';
 // AVAILABLE_MODELS 通过重新导出可用
 
 // 确保数据目录存在
@@ -27,21 +29,15 @@ export function initDatabase() {
       content TEXT NOT NULL,
       project_tag TEXT,
 
-      attribute_tag TEXT DEFAULT '无',
+
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `;
 
-  // 添加attribute_tag字段（如果不存在）
-  const addAttributeColumn = `
-    ALTER TABLE entries ADD COLUMN attribute_tag TEXT DEFAULT '无'
-  `;
 
-  // 添加urgency_tag字段（如果不存在）
-  const addUrgencyColumn = `
-    ALTER TABLE entries ADD COLUMN urgency_tag TEXT DEFAULT 'Jack 交办'
-  `;
+
+
 
   // 添加effort_tag字段（如果不存在）
   const addEffortColumn = `
@@ -55,18 +51,9 @@ export function initDatabase() {
 
   // 添加daily_report_tag字段（如果不存在）
   const addDailyReportColumn = `
-    ALTER TABLE entries ADD COLUMN daily_report_tag TEXT DEFAULT '核心进展'
+    ALTER TABLE entries ADD COLUMN daily_report_tag TEXT DEFAULT '无'
   `;
 
-  // 添加resource_consumption_tag字段（如果不存在）
-  const addResourceConsumptionColumn = `
-    ALTER TABLE entries ADD COLUMN resource_consumption_tag TEXT DEFAULT '低'
-  `;
-
-  // 添加resource_tag字段（如果不存在）
-  const addResourceTagColumn = `
-    ALTER TABLE entries ADD COLUMN resource_tag TEXT DEFAULT '自己搞定'
-  `;
 
 
 
@@ -112,6 +99,38 @@ export function initDatabase() {
       is_active BOOLEAN DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  // 项目表已删除
+
+  // 创建任务表（已移除项目关联）
+  const createTasksTable = `
+    CREATE TABLE IF NOT EXISTS tasks (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      status TEXT CHECK (status IN ('todo', 'in_progress', 'review', 'done', 'cancelled')) DEFAULT 'todo',
+      priority TEXT CHECK (priority IN ('low', 'medium', 'high', 'urgent')) DEFAULT 'medium',
+      estimated_hours REAL,
+      actual_hours REAL DEFAULT 0,
+      due_date DATETIME,
+      completed_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      assignee TEXT
+    )
+  `;
+
+  // 创建子任务表
+  const createSubtasksTable = `
+    CREATE TABLE IF NOT EXISTS subtasks (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      completed BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
     )
   `;
 
@@ -224,21 +243,6 @@ export function initDatabase() {
     )
   `;
 
-  // 创建todos表
-  const createTodosTable = `
-    CREATE TABLE IF NOT EXISTS todos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      description TEXT,
-      status TEXT CHECK(status IN ('pending', 'in_progress', 'completed')) DEFAULT 'pending',
-      priority TEXT CHECK(priority IN ('low', 'medium', 'high')) DEFAULT 'medium',
-      project_tag TEXT,
-      weekday TEXT CHECK(weekday IN ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday')),
-      sort_order INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `;
 
   // 创建AI模型配置表
   const createAIConfigTable = `
@@ -247,6 +251,20 @@ export function initDatabase() {
       function_name TEXT NOT NULL UNIQUE,
       model_name TEXT NOT NULL,
       description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  // 创建AI供应商配置表
+  const createAIProvidersTable = `
+    CREATE TABLE IF NOT EXISTS ai_providers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      provider_id TEXT NOT NULL UNIQUE,
+      provider_name TEXT NOT NULL,
+      api_key TEXT,
+      api_endpoint TEXT,
+      is_enabled BOOLEAN DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -330,21 +348,11 @@ export function initDatabase() {
     ALTER TABLE conversations ADD COLUMN folder_id INTEGER REFERENCES conversation_folders(id)
   `;
   
-  // 添加sort_order字段到todos表（如果不存在）
-  const addTodoSortOrderColumn = `
-    ALTER TABLE todos ADD COLUMN sort_order INTEGER DEFAULT 0
-  `;
-  
-  // 添加weekday字段到todos表（如果不存在）
-  const addTodoWeekdayColumn = `
-    ALTER TABLE todos ADD COLUMN weekday TEXT CHECK(weekday IN ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'))
-  `;
 
   // 创建索引以提高查询性能
   const createIndexes = [
     'CREATE INDEX IF NOT EXISTS idx_entries_created_at ON entries(created_at)',
     'CREATE INDEX IF NOT EXISTS idx_entries_project ON entries(project_tag)',
-
     'CREATE INDEX IF NOT EXISTS idx_entries_sort_order ON entries(sort_order)',
     'CREATE INDEX IF NOT EXISTS idx_insights_type ON ai_insights(insight_type)',
     'CREATE INDEX IF NOT EXISTS idx_insights_created_at ON ai_insights(created_at)',
@@ -370,12 +378,6 @@ export function initDatabase() {
     'CREATE INDEX IF NOT EXISTS idx_search_history_created_at ON search_history(created_at)',
     'CREATE INDEX IF NOT EXISTS idx_search_history_query ON search_history(query)',
     'CREATE INDEX IF NOT EXISTS idx_search_history_favorite ON search_history(is_favorite)',
-    // todos表索引
-    'CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status)',
-    'CREATE INDEX IF NOT EXISTS idx_todos_created_at ON todos(created_at)',
-    'CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority)',
-    'CREATE INDEX IF NOT EXISTS idx_todos_sort_order ON todos(sort_order)',
-    'CREATE INDEX IF NOT EXISTS idx_todos_weekday ON todos(weekday)',
     // 对话与模板相关索引
     'CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id)',
     'CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at)',
@@ -389,20 +391,176 @@ export function initDatabase() {
 
   try {
     db.exec(createEntriesTable);
-    
-    // 尝试添加attribute_tag字段（如果表已存在但字段不存在）
-    try {
-      db.exec(addAttributeColumn);
-    } catch {
-      // 字段已存在，忽略错误
-    }
 
-    // 尝试添加urgency_tag字段（如果表已存在但字段不存在）
-    try {
-      db.exec(addUrgencyColumn);
-    } catch {
-      // 字段已存在，忽略错误
-    }
+    // ========== TODOS 表与事件日志（事件追踪） ==========
+    const createTodosTable = `
+      CREATE TABLE IF NOT EXISTS todos (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT,             -- 存储完整待办对象的JSON，便于前端演化兼容
+        tags TEXT,                -- JSON 数组
+        priority INTEGER DEFAULT 0,
+        due_date TEXT,            -- ISO8601
+        source TEXT,
+        version INTEGER NOT NULL DEFAULT 1,
+        completed INTEGER DEFAULT 0,
+        category TEXT,            -- 'today' | 'week' 等
+        sort_order INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP -- 移除deleted_at字段
+      )
+    `;
+
+    const createTodosIndexes = [
+      "CREATE INDEX IF NOT EXISTS idx_todos_due ON todos(due_date)",
+      "CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority)",
+      "CREATE INDEX IF NOT EXISTS idx_todos_category ON todos(category)",
+      "CREATE INDEX IF NOT EXISTS idx_todos_sort_order ON todos(sort_order)"
+    ];
+
+    const createTodosEventsTable = `
+      CREATE TABLE IF NOT EXISTS todos_events (
+        event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id TEXT NOT NULL,
+        event_type TEXT NOT NULL CHECK (event_type IN ('create','update')),
+        title TEXT,
+        content TEXT,
+        tags TEXT,
+        priority INTEGER,
+        due_date TEXT,
+        source TEXT,
+        version INTEGER,
+        completed INTEGER,
+        category TEXT,
+        created_at TEXT,
+        updated_at TEXT,
+        -- 移除deleted_at字段
+        actor TEXT DEFAULT 'system',
+        occurred_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(entity_id) REFERENCES todos(id) ON DELETE NO ACTION
+      )
+    `;
+
+    const createTodosEventsIndex = "CREATE INDEX IF NOT EXISTS idx_todos_events_entity ON todos_events(entity_id, occurred_at)";
+
+    const createTodosInsertTrigger = `
+      CREATE TRIGGER IF NOT EXISTS trg_todos_after_insert
+      AFTER INSERT ON todos
+      BEGIN
+        INSERT INTO todos_events (
+          entity_id, event_type, title, content, tags, priority, due_date, source, version, completed, category, created_at, updated_at
+        ) VALUES (
+          NEW.id, 'create', NEW.title, NEW.content, NEW.tags, NEW.priority, NEW.due_date, NEW.source, NEW.version, NEW.completed, NEW.category, NEW.created_at, NEW.updated_at
+        );
+      END;
+    `;
+
+    const createTodosUpdateTrigger = `
+      CREATE TRIGGER IF NOT EXISTS trg_todos_after_update
+      AFTER UPDATE ON todos
+      BEGIN
+        INSERT INTO todos_events (
+          entity_id, event_type, title, content, tags, priority, due_date, source, version, completed, category, created_at, updated_at
+        ) VALUES (
+          NEW.id,
+          'update',
+          NEW.title, NEW.content, NEW.tags, NEW.priority, NEW.due_date, NEW.source, NEW.version, NEW.completed, NEW.category, NEW.created_at, NEW.updated_at
+        );
+      END;
+    `;
+
+    db.exec(createTodosTable);
+    db.exec(createTodosEventsTable);
+    createTodosIndexes.forEach(sql => db.exec(sql));
+    db.exec(createTodosEventsIndex);
+    db.exec(createTodosInsertTrigger);
+    db.exec(createTodosUpdateTrigger);
+    // ========== END TODOS ==========
+
+    // ========== OKR 表与事件日志（事件追踪） ==========
+    const createOkrTable = `
+      CREATE TABLE IF NOT EXISTS okr_goals (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT,             -- 存储完整OKR对象的JSON
+        key_results TEXT,          -- JSON 数组
+        completed INTEGER DEFAULT 0,
+        version INTEGER NOT NULL DEFAULT 1,
+        goal_index INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        completed_at DATETIME
+      )
+    `;
+
+    const createOkrIndexes = [
+
+      "CREATE INDEX IF NOT EXISTS idx_okr_completed ON okr_goals(completed)",
+      "CREATE INDEX IF NOT EXISTS idx_okr_goal_index ON okr_goals(goal_index)"
+    ];
+
+    const createOkrEventsTable = `
+      CREATE TABLE IF NOT EXISTS okr_events (
+        event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id TEXT NOT NULL,
+        event_type TEXT NOT NULL CHECK (event_type IN ('create','update','complete')),
+        title TEXT,
+        content TEXT,
+        key_results TEXT,
+        completed INTEGER,
+        version INTEGER,
+        goal_index INTEGER,
+        created_at TEXT,
+        updated_at TEXT,
+        completed_at TEXT,
+
+        actor TEXT DEFAULT 'system',
+        occurred_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(entity_id) REFERENCES okr_goals(id) ON DELETE NO ACTION
+      )
+    `;
+
+    const createOkrEventsIndex = "CREATE INDEX IF NOT EXISTS idx_okr_events_entity ON okr_events(entity_id, occurred_at)";
+
+    const createOkrInsertTrigger = `
+      CREATE TRIGGER IF NOT EXISTS trg_okr_after_insert
+      AFTER INSERT ON okr_goals
+      BEGIN
+        INSERT INTO okr_events (
+          entity_id, event_type, title, content, key_results, completed, version, goal_index, created_at, updated_at, completed_at
+        ) VALUES (
+          NEW.id, 'create', NEW.title, NEW.content, NEW.key_results, NEW.completed, NEW.version, NEW.goal_index, NEW.created_at, NEW.updated_at, NEW.completed_at
+        );
+      END;
+    `;
+
+    const createOkrUpdateTrigger = `
+      CREATE TRIGGER IF NOT EXISTS trg_okr_after_update
+      AFTER UPDATE ON okr_goals
+      BEGIN
+        INSERT INTO okr_events (
+          entity_id, event_type, title, content, key_results, completed, version, goal_index, created_at, updated_at, completed_at
+        ) VALUES (
+          NEW.id,
+          CASE
+            WHEN OLD.completed = 0 AND NEW.completed = 1 THEN 'complete'
+            ELSE 'update'
+          END,
+          NEW.title, NEW.content, NEW.key_results, NEW.completed, NEW.version, NEW.goal_index, NEW.created_at, NEW.updated_at, NEW.completed_at
+        );
+      END;
+    `;
+
+    db.exec(createOkrTable);
+    db.exec(createOkrEventsTable);
+    createOkrIndexes.forEach(sql => db.exec(sql));
+    db.exec(createOkrEventsIndex);
+    db.exec(createOkrInsertTrigger);
+    db.exec(createOkrUpdateTrigger);
+    // ========== END OKR ==========
+
+    
+
 
     // 尝试添加effort_tag字段（如果表已存在但字段不存在）
     try {
@@ -425,19 +583,6 @@ export function initDatabase() {
       // 字段已存在，忽略错误
     }
 
-    // 尝试添加resource_consumption_tag字段（如果表已存在但字段不存在）
-    try {
-      db.exec(addResourceConsumptionColumn);
-    } catch {
-      // 字段已存在，忽略错误
-    }
-
-    // 尝试添加resource_tag字段（如果表已存在但字段不存在）
-    try {
-      db.exec(addResourceTagColumn);
-    } catch {
-      // 字段已存在，忽略错误
-    }
 
 
 
@@ -446,6 +591,8 @@ export function initDatabase() {
     db.exec(createInsightsTable);
     db.exec(createWorkPatternsTable);
     db.exec(createKnowledgeBaseTable);
+    db.exec(createTasksTable);
+    db.exec(createSubtasksTable);
     db.exec(createBehaviorEventsTable);
     db.exec(createBehaviorPatternsTable);
     db.exec(createCognitiveProfilesTable);
@@ -453,8 +600,8 @@ export function initDatabase() {
     db.exec(createKnowledgeRelationshipsTable);
     db.exec(createUserSessionsTable);
     db.exec(createSearchHistoryTable);
-    db.exec(createTodosTable);
     db.exec(createAIConfigTable);
+    db.exec(createAIProvidersTable);
     db.exec(createConversationsTable);
     db.exec(createMessagesTable);
     db.exec(createTagsTable);
@@ -462,19 +609,6 @@ export function initDatabase() {
     db.exec(createPromptTemplatesTable);
     db.exec(createConversationFoldersTable);
     
-    // 尝试添加sort_order字段到todos表（如果表已存在但字段不存在）
-    try {
-      db.exec(addTodoSortOrderColumn);
-    } catch {
-      // 字段已存在，忽略错误
-    }
-    
-    // 尝试添加weekday字段到todos表（如果表已存在但字段不存在）
-    try {
-      db.exec(addTodoWeekdayColumn);
-    } catch {
-      // 字段已存在，忽略错误
-    }
     
     // 尝试添加folder_id字段到conversations表（如果表已存在但字段不存在）
     try {
@@ -485,6 +619,9 @@ export function initDatabase() {
     
     // 初始化默认AI模型配置
     initDefaultAIConfig();
+    
+    // 初始化默认AI供应商配置
+    initDefaultAIProviders();
     
     // 初始化默认提示模板
     initDefaultPromptTemplates();
@@ -497,31 +634,16 @@ export function initDatabase() {
   }
 }
 
-// 数据库操作接口
-export interface Entry {
-  id: number;
-  content: string;
-  project_tag?: string;
-  attribute_tag?: string;
-  urgency_tag?: string;
-  daily_report_tag?: string;
-  resource_tag?: string;
-
-  effort_tag?: string;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
 
 // 创建新记录
-export function createEntry(entry: Omit<Entry, 'id' | 'created_at' | 'updated_at' | 'sort_order'>): Entry {
+export function createEntry(entry: CreateEntry): Entry {
   // 获取当前最大的sort_order值，新记录放在最前面
   const maxOrderStmt = db.prepare('SELECT COALESCE(MAX(sort_order), -1) as maxOrder FROM entries');
   const maxOrder = (maxOrderStmt.get() as { maxOrder: number }).maxOrder;
   
   const stmt = db.prepare(`
-    INSERT INTO entries (content, project_tag, attribute_tag, urgency_tag, daily_report_tag, resource_tag, effort_tag, sort_order)
-    VALUES (@content, @project_tag, @attribute_tag, @urgency_tag, @daily_report_tag, @resource_tag, @effort_tag, @sort_order)
+    INSERT INTO entries (content, project_tag, daily_report_tag, effort_tag, sort_order, created_at, updated_at)
+    VALUES (@content, @project_tag, @daily_report_tag, @effort_tag, @sort_order, datetime('now', 'localtime'), datetime('now', 'localtime'))
   `);
   
   const result = stmt.run({
@@ -535,7 +657,7 @@ export function createEntry(entry: Omit<Entry, 'id' | 'created_at' | 'updated_at
 export function getAllEntries(limit = 100): Entry[] {
   const stmt = db.prepare(`
     SELECT * FROM entries 
-    ORDER BY sort_order DESC, created_at DESC 
+    ORDER BY sort_order DESC, id DESC 
     LIMIT @limit
   `);
   return stmt.all({ limit }) as Entry[];
@@ -554,7 +676,7 @@ export function updateEntry(id: number, entry: Partial<Entry>): Entry {
   
   const stmt = db.prepare(`
     UPDATE entries 
-    SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+    SET ${setClause}
     WHERE id = @id
   `);
   
@@ -562,23 +684,7 @@ export function updateEntry(id: number, entry: Partial<Entry>): Entry {
   return getEntryById(id);
 }
 
-// 批量更新记录排序
-export function updateEntriesOrder(orderUpdates: Array<{ id: number; sort_order: number }>): void {
-  const stmt = db.prepare(`
-    UPDATE entries 
-    SET sort_order = @sort_order
-    WHERE id = @id
-  `);
-  
-  // 使用事务确保数据一致性
-  const updateOrder = db.transaction((updates: Array<{ id: number; sort_order: number }>) => {
-    for (const update of updates) {
-      stmt.run(update);
-    }
-  });
-  
-  updateOrder(orderUpdates);
-}
+
 
 // 删除记录
 export function deleteEntry(id: number): void {
@@ -586,21 +692,19 @@ export function deleteEntry(id: number): void {
   stmt.run({ id });
 }
 
-// 获取周报数据（最近7天的记录）
+// 获取周报数据（所有记录）
 export function getWeeklyReportData(): {
   entries: Entry[];
   stats: {
     total: number;
     projects: Array<{project: string, count: number}>;
-
     timeRange: {start: string, end: string};
   }
 } {
-  // 获取最近7天的记录
+  // 获取所有记录
   const entriesStmt = db.prepare(`
     SELECT * FROM entries 
-    WHERE created_at >= date('now', '-7 days')
-    ORDER BY created_at DESC
+    ORDER BY id DESC
   `);
   const entries = entriesStmt.all() as Entry[];
 
@@ -608,31 +712,18 @@ export function getWeeklyReportData(): {
   const projectsStmt = db.prepare(`
     SELECT project_tag as project, COUNT(*) as count 
     FROM entries 
-    WHERE created_at >= date('now', '-7 days') AND project_tag IS NOT NULL
+    WHERE project_tag IS NOT NULL
     GROUP BY project_tag
     ORDER BY count DESC
   `);
   const projects = projectsStmt.all() as Array<{project: string, count: number}>;
-
-
-
-  // 获取时间范围
-  const timeRangeStmt = db.prepare(`
-    SELECT 
-      MIN(created_at) as start,
-      MAX(created_at) as end
-    FROM entries 
-    WHERE created_at >= date('now', '-7 days')
-  `);
-  const timeRange = timeRangeStmt.get() as {start: string, end: string} || {start: '', end: ''};
 
   return {
     entries,
     stats: {
       total: entries.length,
       projects,
-  
-      timeRange
+      timeRange: {start: '', end: ''}
     }
   };
 }
@@ -643,8 +734,8 @@ export function searchEntries(query: string, limit = 50): Entry[] {
     SELECT * FROM entries 
     WHERE content LIKE @query 
        OR project_tag LIKE @query 
-       OR attribute_tag LIKE @query
-    ORDER BY created_at DESC 
+       OR daily_report_tag LIKE @query
+    ORDER BY id DESC 
     LIMIT @limit
   `);
   return stmt.all({ query: `%${query}%`, limit }) as Entry[];
@@ -654,20 +745,31 @@ export function searchEntries(query: string, limit = 50): Entry[] {
 export function getTodayEntries(): Entry[] {
   const stmt = db.prepare(`
     SELECT * FROM entries 
-    WHERE DATE(created_at) = DATE('now')
+    WHERE DATE(created_at) = DATE('now', 'localtime')
     ORDER BY created_at DESC
   `);
   return stmt.all() as Entry[];
 }
 
-// 获取最近7天的记录
+// 获取本周记录
+export function getThisWeekEntries(): Entry[] {
+  const stmt = db.prepare(`
+    SELECT * FROM entries 
+    WHERE DATE(created_at) >= DATE('now', 'weekday 0', '-6 days', 'localtime')
+    ORDER BY created_at DESC
+  `);
+  return stmt.all() as Entry[];
+}
+
+// 获取最近N天的记录
 export function getRecentEntries(days = 7): Entry[] {
   const stmt = db.prepare(`
     SELECT * FROM entries 
-    WHERE created_at >= datetime('now', '-@days days')
+    WHERE DATE(created_at) >= DATE('now', '-' || ? || ' days', 'localtime')
     ORDER BY created_at DESC
+    LIMIT 100
   `);
-  return stmt.all({ days }) as Entry[];
+  return stmt.all(days) as Entry[];
 }
 
 // 按项目分组统计
@@ -736,7 +838,7 @@ export function getAllKnowledgeDocuments() {
   const stmt = db.prepare(`
     SELECT * FROM knowledge_base 
     WHERE is_active = 1 
-    ORDER BY priority DESC, created_at DESC
+    ORDER BY priority DESC, id DESC
   `);
   return stmt.all();
 }
@@ -746,7 +848,7 @@ export function getKnowledgeDocumentsByType(documentType: string) {
   const stmt = db.prepare(`
     SELECT * FROM knowledge_base 
     WHERE document_type = ? AND is_active = 1 
-    ORDER BY priority DESC, created_at DESC
+    ORDER BY priority DESC, id DESC
   `);
   return stmt.all(documentType);
 }
@@ -809,7 +911,7 @@ export function updateKnowledgeDocument(id: number, data: {
   return getKnowledgeDocument(id);
 }
 
-// 删除知识文档（软删除）
+// 删除知识文档（标记为非活跃）
 export function deleteKnowledgeDocument(id: number) {
   const stmt = db.prepare('UPDATE knowledge_base SET is_active = 0 WHERE id = ?');
   stmt.run(id);
@@ -871,7 +973,7 @@ export interface ExportData {
 // 获取完整的导出数据
 export function getExportData(includeKnowledgeBase = true): ExportData {
   // 获取所有记录
-  const entries = db.prepare('SELECT * FROM entries ORDER BY created_at DESC').all() as Entry[];
+  const entries = db.prepare('SELECT * FROM entries ORDER BY id DESC').all() as Entry[];
   
   // 获取知识库数据
   let knowledgeBase: Array<{
@@ -948,12 +1050,7 @@ export function exportToCSV(): string {
     'ID',
     '内容',
     '项目标签',
-
-    '属性标签',
-    '紧急程度',
-    '工作量',
-    '创建时间',
-    '更新时间'
+    '工作量'
   ];
   
   // 转换数据行
@@ -961,12 +1058,7 @@ export function exportToCSV(): string {
     entry.id,
     `"${(entry.content || '').replace(/"/g, '""')}"`, // 处理CSV中的引号
     entry.project_tag || '',
-
-    entry.attribute_tag || '',
-    entry.urgency_tag || '',
-    entry.effort_tag || '',
-    entry.created_at,
-    entry.updated_at
+    entry.effort_tag || ''
   ]);
   
   // 组合CSV内容
@@ -988,7 +1080,7 @@ export interface DataIntegrityReport {
     entries: {
       total: number;
       withContent: number;
-      withTimestamps: number;
+
 
     };
     knowledgeBase: {
@@ -1016,7 +1108,7 @@ export function validateDataIntegrity(): DataIntegrityReport {
       entries: {
         total: 0,
         withContent: 0,
-        withTimestamps: 0
+
       },
       knowledgeBase: {
         total: 0,
@@ -1062,25 +1154,20 @@ export function validateDataIntegrity(): DataIntegrityReport {
       const entriesWithContent = entries.filter(e => e.content && e.content.trim().length > 0);
       report.details.entries.withContent = entriesWithContent.length;
       
-      // 检查时间戳完整性
-      const entriesWithTimestamps = entries.filter(e => e.created_at && e.updated_at);
-      report.details.entries.withTimestamps = entriesWithTimestamps.length;
+      // 移除时间戳检查，因为已经从Entry接口中删除了时间戳字段
       
 
       
       if (entries.length === 0) {
         report.warnings.push('数据库中没有任何记录');
-      } else if (entriesWithContent.length === entries.length && 
-                 entriesWithTimestamps.length === entries.length) {
+      } else if (entriesWithContent.length === entries.length) {
         report.passedChecks++;
       } else {
         const issues = [];
         if (entriesWithContent.length < entries.length) {
           issues.push(`${entries.length - entriesWithContent.length}条记录缺少内容`);
         }
-        if (entriesWithTimestamps.length < entries.length) {
-          issues.push(`${entries.length - entriesWithTimestamps.length}条记录缺少时间戳`);
-        }
+
 
         report.warnings.push(`记录数据完整性问题: ${issues.join(', ')}`);
         report.passedChecks++; // 警告不影响整体验证通过
@@ -1199,7 +1286,6 @@ export interface SearchHistoryItem {
   search_options?: string;
   result_count: number;
   search_time_ms: number;
-  created_at: string;
   is_favorite: boolean;
 }
 
@@ -1228,7 +1314,6 @@ export function saveSearchHistory(
     search_options: JSON.stringify(searchOptions),
     result_count: resultCount,
     search_time_ms: searchTimeMs,
-    created_at: new Date().toISOString(),
     is_favorite: false
   };
 }
@@ -1237,10 +1322,9 @@ export function saveSearchHistory(
 export function getSearchHistory(limit = 20): SearchHistoryItem[] {
   const stmt = db.prepare(`
     SELECT * FROM search_history 
-    ORDER BY created_at DESC 
+    ORDER BY id DESC 
     LIMIT ?
   `);
-  
   return stmt.all(limit) as SearchHistoryItem[];
 }
 
@@ -1250,7 +1334,7 @@ export function getPopularSearches(limit = 10): Array<{ query: string; count: nu
     SELECT 
       query,
       COUNT(*) as count,
-      MAX(created_at) as last_search
+      MAX(id) as last_search
     FROM search_history 
     WHERE LENGTH(query) > 1
     GROUP BY query 
@@ -1278,7 +1362,7 @@ export function getFavoriteSearches(): SearchHistoryItem[] {
   const stmt = db.prepare(`
     SELECT * FROM search_history 
     WHERE is_favorite = 1
-    ORDER BY created_at DESC
+    ORDER BY id DESC
   `);
   
   return stmt.all() as SearchHistoryItem[];
@@ -1305,8 +1389,6 @@ export interface AIModelConfig {
   function_name: string;
   model_name: string;
   description?: string;
-  created_at: string;
-  updated_at: string;
 }
 
 // 可用的AI模型列表 - 从 models.ts 文件导入以避免数据库依赖
@@ -1315,13 +1397,81 @@ export { AVAILABLE_MODELS } from './models';
 
 // AI功能列表及其默认模型
 export const AI_FUNCTIONS = [
-  { name: 'polish_text', label: '文本润色', defaultModel: 'moonshotai/kimi-k2', description: '优化语音转文字内容，去除口癖词汇' },
-  { name: 'generate_questions', label: 'AI犀利提问', defaultModel: 'moonshotai/kimi-k2', description: '基于内容生成深度思考问题' },
-  { name: 'find_similar', label: '相似内容查找', defaultModel: 'anthropic/claude-3-haiku', description: '使用AI分析内容相似度' },
-  { name: 'weekly_report', label: '智能周报', defaultModel: 'moonshotai/kimi-k2', description: '生成智能工作周报' },
-  { name: 'minimalist_analysis', label: '极简增长分析', defaultModel: 'moonshotai/kimi-k2', description: '基于极简增长理论的深度分析' },
-  { name: 'agent_chat', label: '对话聊天', defaultModel: 'moonshotai/kimi-k2', description: '通用中文对话模型' }
+  { name: 'polish_text', label: '文本润色', defaultModel: 'glm-4.5', description: '优化语音转文字内容，去除口癖词汇' },
+  { name: 'generate_questions', label: 'AI犀利提问', defaultModel: 'glm-4.5', description: '基于内容生成深度思考问题' },
+  { name: 'find_similar', label: '相似内容查找', defaultModel: 'glm-4.5-air', description: '使用AI分析内容相似度' },
+  { name: 'weekly_report', label: '智能周报', defaultModel: 'glm-4.5', description: '生成智能工作周报' },
+  { name: 'minimalist_analysis', label: '极简增长分析', defaultModel: 'glm-4.5', description: '基于极简增长理论的深度分析' },
+  { name: 'agent_chat', label: '对话聊天', defaultModel: 'glm-4.5', description: '通用中文对话模型' }
 ];
+
+// AI供应商配置接口
+export interface AIProviderConfig {
+  id: number;
+  provider_id: string;
+  provider_name: string;
+  api_key?: string;
+  api_endpoint?: string;
+  is_enabled: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// 初始化默认AI供应商配置
+export function initDefaultAIProviders(): void {
+  const defaultProviders = [
+    {
+      provider_id: 'openrouter',
+      provider_name: 'OpenRouter',
+      api_endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      is_enabled: true
+    },
+    {
+      provider_id: 'zhipu',
+      provider_name: '智谱GLM',
+      api_endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+      is_enabled: false
+    },
+    {
+      provider_id: 'deepseek',
+      provider_name: 'DeepSeek',
+      api_endpoint: 'https://api.deepseek.com/chat/completions',
+      is_enabled: false
+    }
+  ];
+
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO ai_providers (provider_id, provider_name, api_endpoint, is_enabled)
+    VALUES (?, ?, ?, ?)
+  `);
+
+  for (const provider of defaultProviders) {
+    stmt.run(provider.provider_id, provider.provider_name, provider.api_endpoint, provider.is_enabled ? 1 : 0);
+  }
+
+  // 迁移环境变量API Key到数据库（仅在首次运行或数据库中没有API Key时）
+  migrateEnvironmentApiKeysToDatabase();
+}
+
+// 迁移环境变量API Key到数据库
+function migrateEnvironmentApiKeysToDatabase(): void {
+  try {
+    // 检查OpenRouter的API Key是否需要迁移
+    const openrouterConfig = db.prepare('SELECT api_key FROM ai_providers WHERE provider_id = ?').get('openrouter') as { api_key?: string } | undefined;
+    
+    // 如果数据库中没有API Key但环境变量中有，则进行迁移
+    if ((!openrouterConfig?.api_key || openrouterConfig.api_key.trim() === '') && process.env.OPENROUTER_API_KEY) {
+      debug.info('检测到环境变量OPENROUTER_API_KEY，正在迁移到数据库...');
+      
+      const updateStmt = db.prepare('UPDATE ai_providers SET api_key = ? WHERE provider_id = ?');
+      updateStmt.run(process.env.OPENROUTER_API_KEY, 'openrouter');
+      
+      debug.info('环境变量API Key迁移成功');
+    }
+  } catch (error) {
+    debug.warn('环境变量API Key迁移失败:', error);
+  }
+}
 
 // 初始化默认AI模型配置
 export function initDefaultAIConfig(): void {
@@ -1386,11 +1536,12 @@ export function updateMultipleAIModelConfigs(configs: Array<{ functionName: stri
   `);
   
   try {
-    db.transaction(() => {
+    const transaction = db.transaction(() => {
       for (const config of configs) {
         stmt.run(config.modelName, config.functionName);
       }
-    })();
+    });
+    transaction();
     return true;
   } catch (error) {
     debug.error('批量更新AI模型配置失败:', error);
@@ -1398,170 +1549,71 @@ export function updateMultipleAIModelConfigs(configs: Array<{ functionName: stri
   }
 }
 
-// ================================
-// Todo相关数据库操作函数
-// ================================
+// ===== AI供应商配置相关函数 =====
 
-import type { Todo, CreateTodo, TodoStats } from '@/types/index';
-import { debug } from '@/lib/debug';
-
-// 创建新的Todo
-export function createTodo(todo: CreateTodo): Todo {
-  // 获取当前最大的sort_order值，新Todo放在最前面
-  const maxOrderStmt = db.prepare('SELECT COALESCE(MAX(sort_order), -1) as maxOrder FROM todos');
-  const maxOrder = (maxOrderStmt.get() as { maxOrder: number }).maxOrder;
-  
-  const stmt = db.prepare(`
-    INSERT INTO todos (title, description, priority, project_tag, weekday, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-  
-  const result = stmt.run(
-    todo.title,
-    todo.description || null,
-    todo.priority || 'medium',
-    todo.project_tag || null,
-    todo.weekday || null,
-    maxOrder + 1
-  );
-  
-  const createdTodo = db.prepare('SELECT * FROM todos WHERE id = ?').get(result.lastInsertRowid) as Todo;
-  return createdTodo;
+// 获取所有AI供应商配置
+export function getAllAIProviders(): AIProviderConfig[] {
+  const stmt = db.prepare('SELECT * FROM ai_providers ORDER BY provider_name');
+  return stmt.all() as AIProviderConfig[];
 }
 
-// 获取所有Todo
-export function getAllTodos(): Todo[] {
-  const stmt = db.prepare(`
-    SELECT * FROM todos 
-    ORDER BY 
-      sort_order DESC,
-      CASE status 
-        WHEN 'in_progress' THEN 1 
-        WHEN 'pending' THEN 2 
-        WHEN 'completed' THEN 3 
-      END,
-      CASE priority 
-        WHEN 'high' THEN 1 
-        WHEN 'medium' THEN 2 
-        WHEN 'low' THEN 3 
-      END
-  `);
-  
-  return stmt.all() as Todo[];
+// 获取特定供应商配置
+export function getAIProvider(providerId: string): AIProviderConfig | null {
+  const stmt = db.prepare('SELECT * FROM ai_providers WHERE provider_id = ?');
+  const result = stmt.get(providerId) as AIProviderConfig | undefined;
+  return result || null;
 }
 
-
-
-// 根据ID获取单个Todo
-export function getTodoById(id: number): Todo | null {
-  const stmt = db.prepare('SELECT * FROM todos WHERE id = ?');
-  return stmt.get(id) as Todo | null;
-}
-
-// 更新Todo
-export function updateTodo(id: number, updates: Partial<Todo>): Todo {
+// 更新AI供应商配置
+export function updateAIProvider(providerId: string, updates: {
+  api_key?: string;
+  api_endpoint?: string;
+  is_enabled?: boolean;
+}): boolean {
   const fields = [];
   const values = [];
   
-  // 构建动态更新查询
-  for (const [key, value] of Object.entries(updates)) {
-    if (key !== 'id') {
-      fields.push(`${key} = ?`);
-      values.push(value);
-    }
+  if (updates.api_key !== undefined) {
+    fields.push('api_key = ?');
+    values.push(updates.api_key);
+  }
+  if (updates.api_endpoint !== undefined) {
+    fields.push('api_endpoint = ?');
+    values.push(updates.api_endpoint);
+  }
+  if (updates.is_enabled !== undefined) {
+    fields.push('is_enabled = ?');
+    values.push(updates.is_enabled ? 1 : 0);
   }
   
-  values.push(id);
+  if (fields.length === 0) return false;
+  
+  fields.push('updated_at = CURRENT_TIMESTAMP');
+  values.push(providerId);
   
   const stmt = db.prepare(`
-    UPDATE todos 
-    SET ${fields.join(', ')} 
-    WHERE id = ?
+    UPDATE ai_providers 
+    SET ${fields.join(', ')}
+    WHERE provider_id = ?
   `);
   
-  stmt.run(...values);
-  
-  return getTodoById(id)!;
-}
-
-// 更新Todo状态
-export function updateTodoStatus(id: number, status: Todo['status']): Todo {
-  const stmt = db.prepare(`
-    UPDATE todos 
-    SET status = ?
-    WHERE id = ?
-  `);
-  
-  stmt.run(status, id);
-  return getTodoById(id)!;
-}
-
-// 删除Todo
-export function deleteTodo(id: number): boolean {
-  const stmt = db.prepare('DELETE FROM todos WHERE id = ?');
-  const result = stmt.run(id);
+  const result = stmt.run(...values);
   return result.changes > 0;
 }
 
-
-
-
-
-
-
-// 获取Todo统计信息
-export function getTodoStats(): TodoStats {
-  // 获取基础统计
-  const basicStats = db.prepare(`
-    SELECT 
-      COUNT(*) as total,
-      SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-      SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
-      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
-    FROM todos
-  `).get() as { total: number; completed: number; in_progress: number; pending: number };
-  
-  // 获取优先级分布
-  const priorityStats = db.prepare(`
-    SELECT 
-      SUM(CASE WHEN priority = 'high' THEN 1 ELSE 0 END) as high,
-      SUM(CASE WHEN priority = 'medium' THEN 1 ELSE 0 END) as medium,
-      SUM(CASE WHEN priority = 'low' THEN 1 ELSE 0 END) as low
-    FROM todos
-  `).get() as { high: number; medium: number; low: number };
-  
-  const completion_rate = basicStats.total > 0 ? (basicStats.completed / basicStats.total) * 100 : 0;
-  
-  return {
-    total: basicStats.total,
-    completed: basicStats.completed,
-    in_progress: basicStats.in_progress,
-    pending: basicStats.pending,
-    completion_rate,
-    by_priority: {
-      high: priorityStats.high,
-      medium: priorityStats.medium,
-      low: priorityStats.low
-    }
-  };
+// 获取已启用的AI供应商
+export function getEnabledAIProviders(): AIProviderConfig[] {
+  const stmt = db.prepare('SELECT * FROM ai_providers WHERE is_enabled = 1 ORDER BY provider_name');
+  return stmt.all() as AIProviderConfig[];
 }
 
-// 批量更新Todos的排序顺序
-export function updateTodosOrder(updates: Array<{ id: number; sort_order: number; }>): boolean {
-  const updateStmt = db.prepare('UPDATE todos SET sort_order = ? WHERE id = ?');
-  
-  try {
-    db.transaction(() => {
-      for (const update of updates) {
-        updateStmt.run(update.sort_order, update.id);
-      }
-    })();
-    return true;
-  } catch (error) {
-    debug.error('批量更新Todo排序失败:', error);
-    return false;
-  }
+// 获取OpenRouter的API Key (如果启用且有配置)
+export function getOpenRouterApiKey(): string | null {
+  const stmt = db.prepare('SELECT api_key FROM ai_providers WHERE provider_id = ? AND is_enabled = 1');
+  const result = stmt.get('openrouter') as { api_key?: string } | undefined;
+  return result?.api_key || null;
 }
+
 
 // ================================
 // 对话管理 CRUD 操作
@@ -1572,8 +1624,6 @@ export interface Conversation {
   title: string;
   model_name: string;
   system_prompt?: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface CreateConversationData {
@@ -1609,7 +1659,7 @@ export function listConversations(params?: {
   keyword?: string;
   tagId?: number; // 兼容旧的单个标签ID
   tagIds?: number[]; // 支持多个标签ID
-  folderId?: number; // 文件夹过滤
+  folderId?: number | null; // 文件夹过滤，支持null值表示未分组对话
   limit?: number;
   offset?: number;
 }): (Conversation & { tags?: Tag[] })[] {
@@ -1742,7 +1792,6 @@ export interface Message {
   role: 'system' | 'user' | 'assistant';
   content: string;
   tokens_used?: number;
-  created_at: string;
 }
 
 export interface CreateMessageData {
@@ -1785,7 +1834,7 @@ export function listMessagesByConversation(
   let query = `
     SELECT * FROM messages
     WHERE conversation_id = ?
-    ORDER BY created_at ASC
+    ORDER BY id ASC
   `;
   
   const values: unknown[] = [conversationId];
@@ -1905,8 +1954,6 @@ export interface PromptTemplate {
   content: string;
   description?: string;
   is_favorite: boolean;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface CreatePromptTemplateData {
@@ -2014,7 +2061,6 @@ export function deletePromptTemplate(id: number): boolean {
 export interface Tag {
   id: number;
   name: string;
-  created_at: string;
 }
 
 // 创建标签
@@ -2093,12 +2139,8 @@ export function listTagsByConversation(conversationId: number): Tag[] {
 
 // 计算会话时长
 function calculateConversationDuration(messages: Message[]) {
-  if (messages.length < 2) return 0;
-  
-  const firstMessage = new Date(messages[0].created_at);
-  const lastMessage = new Date(messages[messages.length - 1].created_at);
-  
-  return Math.round((lastMessage.getTime() - firstMessage.getTime()) / 1000 / 60); // 分钟
+  // 由于移除了时间戳字段，无法计算对话持续时间
+  return 0;
 }
 
 // 分析会话流程
@@ -2127,7 +2169,7 @@ function analyzeConversationFlow(messages: Message[]) {
         userMessage: {
           content: msg.content.substring(0, 100) + (msg.content.length > 100 ? '...' : ''),
           length: msg.content.length,
-          timestamp: msg.created_at
+          timestamp: 'N/A'
         },
         assistantResponse: null as {
           content: string;
@@ -2144,7 +2186,7 @@ function analyzeConversationFlow(messages: Message[]) {
           content: nextMessage.content.substring(0, 100) + (nextMessage.content.length > 100 ? '...' : ''),
           length: nextMessage.content.length,
           tokensUsed: nextMessage.tokens_used,
-          timestamp: nextMessage.created_at
+          timestamp: 'N/A'
         };
       }
       
@@ -2236,6 +2278,7 @@ export interface ConversationFolder {
   parent_id?: number;
   created_at: string;
   updated_at: string;
+  children?: ConversationFolder[];
 }
 
 export interface CreateFolderData {
@@ -2542,4 +2585,447 @@ export function getConversationsInFolder(folderId: number | null, params?: {
 // 导出数据库连接函数供API路由使用
 export function getDbConnection() {
   return db;
+}
+
+// ================================
+// TODOS 读写接口（事件日志）
+// ================================
+
+export interface TodoRecord {
+  id: string;
+  title: string;
+  content?: string; // JSON 字符串，保存完整对象
+  tags?: string;    // JSON 字符串
+  priority?: number;
+  due_date?: string | null;
+  source?: string;
+  version: number;
+  completed: number; // 0/1
+  category?: string | null;
+  sort_order: number;
+}
+
+// 创建待办（传入完整对象，自动封装）
+export function createTodoFromObject(obj: Record<string, unknown> & { text: string; category?: string; priority?: number; dueDate?: string | Date; tags?: unknown[]; completed?: boolean }): TodoRecord {
+  const id = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  const title = obj.text || '未命名任务';
+  const tags = JSON.stringify(obj.tags || []);
+  const dueISO = obj.dueDate ? new Date(obj.dueDate).toISOString() : null;
+  const completed = obj.completed ? 1 : 0;
+  const content = JSON.stringify(obj);
+
+  // 获取当前最大排序值
+  const maxOrderStmt = db.prepare('SELECT COALESCE(MAX(sort_order), 0) as max_order FROM todos WHERE category = ? OR category IS NULL');
+  const maxOrder = (maxOrderStmt.get(obj.category || null) as { max_order: number } | undefined)?.max_order || 0;
+  
+  const stmt = db.prepare(`
+    INSERT INTO todos (id, title, content, tags, priority, due_date, source, version, completed, category, sort_order)
+    VALUES (@id, @title, @content, @tags, @priority, @due_date, @source, @version, @completed, @category, @sort_order)
+  `);
+  stmt.run({
+    id,
+    title,
+    content,
+    tags,
+    priority: Number.isFinite(obj.priority) ? obj.priority : 0,
+    due_date: dueISO,
+    source: obj.source || 'ui',
+    version: 1,
+    completed,
+    category: obj.category || null,
+    sort_order: maxOrder + 1
+  });
+  const rec = db.prepare('SELECT * FROM todos WHERE id = ?').get(id) as TodoRecord;
+  return rec;
+}
+
+export function listTodos(params?: { category?: string }): TodoRecord[] {
+  const category = params?.category;
+  
+  if (category === 'today') {
+    // 今日任务：获取due_date为今天的任务，或者没有due_date但category为today的任务
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + 
+                     String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                     String(today.getDate()).padStart(2, '0');
+    const sql = `SELECT * FROM todos 
+                 WHERE (DATE(due_date) = ? OR (due_date IS NULL AND category = 'today'))
+                 ORDER BY sort_order ASC, created_at DESC`;
+    return db.prepare(sql).all(todayStr) as TodoRecord[];
+  } else if (category === 'week') {
+    // 本周任务：获取本周内的所有任务（包括今日任务）
+    const sql = 'SELECT * FROM todos ORDER BY sort_order ASC, created_at DESC';
+    return db.prepare(sql).all() as TodoRecord[];
+  } else if (category) {
+    // 其他分类：按原逻辑
+    const sql = 'SELECT * FROM todos WHERE category = ? ORDER BY sort_order ASC, created_at DESC';
+    return db.prepare(sql).all(category) as TodoRecord[];
+  }
+  
+  // 无分类：返回所有
+  const sql = 'SELECT * FROM todos ORDER BY sort_order ASC, created_at DESC';
+  return db.prepare(sql).all() as TodoRecord[];
+}
+
+export function getTodoById(id: string): TodoRecord | null {
+  const sql = 'SELECT * FROM todos WHERE id = ?';
+  return db.prepare(sql).get(id) as TodoRecord | null;
+}
+
+// 批量更新任务排序
+
+
+export function updateTodoObject(id: string, updates: Record<string, unknown>): TodoRecord | null {
+  const current = getTodoById(id);
+  if (!current) return null;
+  const currentObj = current.content ? JSON.parse(current.content) : {};
+  const nextObj = { ...currentObj, ...updates };
+  const nextTitle = updates.text !== undefined ? updates.text : (current.title || '未命名任务');
+  const nextTags = JSON.stringify((updates.tags !== undefined ? updates.tags : (currentObj.tags || [])) || []);
+  const nextPriority = Number.isFinite(updates.priority) ? updates.priority : (current.priority || 0);
+  const nextDue = updates.dueDate !== undefined ? (updates.dueDate && (typeof updates.dueDate === 'string' || typeof updates.dueDate === 'number' || updates.dueDate instanceof Date) ? new Date(updates.dueDate).toISOString() : null) : (current.due_date || null);
+  const nextCompleted = typeof updates.completed === 'boolean' ? (updates.completed ? 1 : 0) : current.completed;
+  const nextCategory = updates.category !== undefined ? updates.category : current.category;
+
+  // 如果任务被标记为完成，将其排序到列表底部
+  let nextSortOrder = current.sort_order;
+  if (typeof updates.completed === 'boolean' && updates.completed && current.completed === 0) {
+    // 获取当前最大的 sort_order 值
+    const maxSortOrderResult = db.prepare('SELECT MAX(sort_order) as max_sort FROM todos').get() as { max_sort: number | null };
+    const maxSortOrder = maxSortOrderResult?.max_sort || 0;
+    nextSortOrder = maxSortOrder + 1;
+  }
+
+  const stmt = db.prepare(`
+    UPDATE todos
+    SET title = @title,
+        content = @content,
+        tags = @tags,
+        priority = @priority,
+        due_date = @due_date,
+        completed = @completed,
+        category = @category,
+        sort_order = @sort_order,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `);
+  stmt.run({
+    id,
+    title: nextTitle,
+    content: JSON.stringify(nextObj),
+    tags: nextTags,
+    priority: nextPriority,
+    due_date: nextDue,
+    completed: nextCompleted,
+    category: nextCategory,
+    sort_order: nextSortOrder
+  });
+  return getTodoById(id);
+}
+
+
+
+// 永久删除单条待办（会先删除其事件，再删除待办本身）
+export function hardDeleteTodo(id: string): boolean {
+  // 先删除事件日志，以满足外键约束（todos_events.entity_id -> todos.id, NO ACTION）
+  const delEvents = db.prepare('DELETE FROM todos_events WHERE entity_id = ?');
+  const delTodo = db.prepare('DELETE FROM todos WHERE id = ?');
+  const tx = db.transaction((todoId: string) => {
+    delEvents.run(todoId);
+    const res = delTodo.run(todoId);
+    return res.changes > 0;
+  });
+  return tx(id);
+}
+
+// 事件日志记录类型
+export interface TodoEvent {
+  event_id: number;
+  entity_id: string;
+  event_type: 'create' | 'update';
+  title?: string | null;
+  content?: string | null;
+  tags?: string | null;
+  priority?: number | null;
+  due_date?: string | null;
+  source?: string | null;
+  version?: number | null;
+  completed?: number | null;
+  category?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  actor?: string | null;
+  occurred_at: string;
+}
+
+// 按待办ID查询事件日志
+export function listTodoEvents(entityId: string, limit = 100): TodoEvent[] {
+  const stmt = db.prepare(
+    `SELECT * FROM todos_events WHERE entity_id = ? ORDER BY occurred_at ASC LIMIT ?`
+  );
+  return stmt.all(entityId, limit) as TodoEvent[];
+}
+
+// ================================
+// OKR 读写接口（事件日志）
+// ================================
+
+export interface OKRRecord {
+  id: string;
+  title: string;
+  content?: string; // JSON 字符串，保存完整对象
+  key_results?: string; // JSON 字符串
+  completed: number; // 0/1
+  version: number;
+  goal_index: number;
+  completed_at?: string | null;
+}
+
+// 创建OKR目标（传入完整对象，自动封装）
+export function createOKRFromObject(obj: Record<string, unknown> & { title: string; goalIndex?: number; keyResults?: unknown[]; completed?: boolean }): OKRRecord {
+  const id = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto?.randomUUID?.() || `okr_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  const title = obj.title || '';
+  const keyResults = JSON.stringify(obj.keyResults || []);
+  const completed = obj.completed ? 1 : 0;
+  const content = JSON.stringify(obj);
+
+  const stmt = db.prepare(`
+    INSERT INTO okr_goals (id, title, content, key_results, completed, version, goal_index)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(
+    id,
+    title,
+    content,
+    keyResults,
+    completed,
+    1,
+    obj.goalIndex || 0
+  );
+  const rec = db.prepare('SELECT * FROM okr_goals WHERE id = ?').get(id) as OKRRecord;
+  return rec;
+}
+
+export function listOKRs(): OKRRecord[] {
+  const sql = 'SELECT * FROM okr_goals ORDER BY goal_index ASC, created_at DESC';
+  return db.prepare(sql).all() as OKRRecord[];
+}
+
+export function getOKRById(id: string): OKRRecord | null {
+  const sql = 'SELECT * FROM okr_goals WHERE id = ?';
+  return db.prepare(sql).get(id) as OKRRecord | null;
+}
+
+export function updateOKRObject(id: string, updates: Record<string, unknown>): OKRRecord | null {
+  const current = getOKRById(id);
+  if (!current) return null;
+  const currentObj = current.content ? JSON.parse(current.content) : {};
+  const nextObj = { ...currentObj, ...updates };
+  const nextTitle = updates.title !== undefined ? updates.title : current.title;
+  const nextKeyResults = JSON.stringify((updates.keyResults !== undefined ? updates.keyResults : (currentObj.keyResults || [])) || []);
+  const nextCompleted = typeof updates.completed === 'boolean' ? (updates.completed ? 1 : 0) : current.completed;
+
+  const stmt = db.prepare(`
+    UPDATE okr_goals
+    SET title = ?,
+        content = ?,
+        key_results = ?,
+        completed = ?,
+        updated_at = CURRENT_TIMESTAMP,
+        completed_at = CASE WHEN ? = 1 AND completed = 0 THEN CURRENT_TIMESTAMP ELSE completed_at END
+    WHERE id = ?
+  `);
+  stmt.run(
+    nextTitle,
+    JSON.stringify(nextObj),
+    nextKeyResults,
+    nextCompleted,
+    nextCompleted,
+    id
+  );
+  return getOKRById(id);
+}
+
+
+
+// 永久删除单条OKR（会先删除其事件，再删除OKR本身）
+export function hardDeleteOKR(id: string): boolean {
+  const delEvents = db.prepare('DELETE FROM okr_events WHERE entity_id = ?');
+  const delOKR = db.prepare('DELETE FROM okr_goals WHERE id = ?');
+  const tx = db.transaction((okrId: string) => {
+    delEvents.run(okrId);
+    const res = delOKR.run(okrId);
+    return res.changes > 0;
+  });
+  return tx(id);
+}
+
+
+// 事件日志记录类型
+export interface OKREvent {
+  event_id: number;
+  entity_id: string;
+  event_type: 'create' | 'update' | 'complete';
+  title?: string | null;
+  content?: string | null;
+  key_results?: string | null;
+  completed?: number | null;
+  version?: number | null;
+  goal_index?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  completed_at?: string | null;
+
+  actor?: string | null;
+  occurred_at: string;
+}
+
+// 按OKR ID查询事件日志
+export function listOKREvents(entityId: string, limit = 100): OKREvent[] {
+  const stmt = db.prepare(
+    `SELECT * FROM okr_events WHERE entity_id = ? ORDER BY occurred_at ASC LIMIT ?`
+  );
+  return stmt.all(entityId, limit) as OKREvent[];
+}
+
+// ========== 综合日报数据获取 ==========
+
+// 综合日报数据接口
+export interface EnhancedWeeklyData {
+  entries: Entry[];
+  todos: {
+    completed: TodoRecord[];
+    pending: TodoRecord[];
+    total: number;
+    completionRate: number;
+  };
+  productivity: {
+    dailyCompletions: { date: string; count: number }[];
+    priorityDistribution: { high: number; medium: number; low: number };
+    categoryBreakdown: { work: number; life: number; study: number; health: number; other: number };
+  };
+  stats: {
+    total: number;
+    projects: Array<{ project: string; count: number }>;
+    importance: Array<{ level: number; count: number }>;
+    timeRange: { start: string; end: string };
+  };
+}
+
+// 获取综合日报数据（最近7天）
+export function getEnhancedWeeklyReportData(): EnhancedWeeklyData {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+
+  // 获取记录数据
+  const entriesStmt = db.prepare(`
+    SELECT * FROM entries 
+    WHERE created_at >= ? 
+    ORDER BY created_at DESC
+  `);
+  const entries = entriesStmt.all(sevenDaysAgoStr) as Entry[];
+
+  // 获取TODO数据
+  const allTodosStmt = db.prepare(`
+    SELECT * FROM todos 
+    WHERE created_at >= ? OR updated_at >= ?
+    ORDER BY created_at DESC
+  `);
+  const allTodos = allTodosStmt.all(sevenDaysAgoStr, sevenDaysAgoStr) as TodoRecord[];
+
+  // 分离已完成和未完成的TODO
+  const completedTodos = allTodos.filter(todo => todo.completed === 1);
+  const pendingTodos = allTodos.filter(todo => todo.completed === 0);
+  const totalTodos = allTodos.length;
+  const completionRate = totalTodos > 0 ? Math.round((completedTodos.length / totalTodos) * 100) : 0;
+
+  // 计算每日完成数量
+  const dailyCompletions: { date: string; count: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const dailyCompleted = completedTodos.filter(todo => {
+      const completedDate = (todo as any).updated_at?.split('T')[0];
+      return completedDate === dateStr && todo.completed === 1;
+    }).length;
+    
+    dailyCompletions.push({ date: dateStr, count: dailyCompleted });
+  }
+
+  // 计算优先级分布
+  const priorityDistribution = { high: 0, medium: 0, low: 0 };
+  allTodos.forEach(todo => {
+    if (todo.priority === 2) priorityDistribution.high++;
+    else if (todo.priority === 1) priorityDistribution.medium++;
+    else priorityDistribution.low++;
+  });
+
+  // 计算分类分布（从content JSON中解析）
+  const categoryBreakdown = { work: 0, life: 0, study: 0, health: 0, other: 0 };
+  allTodos.forEach(todo => {
+    try {
+      const content = todo.content ? JSON.parse(todo.content) : {};
+      const tags = content.tags || [];
+      if (tags.includes('work')) categoryBreakdown.work++;
+      else if (tags.includes('life')) categoryBreakdown.life++;
+      else if (tags.includes('study')) categoryBreakdown.study++;
+      else if (tags.includes('health')) categoryBreakdown.health++;
+      else categoryBreakdown.other++;
+    } catch {
+      categoryBreakdown.other++;
+    }
+  });
+
+  // 获取记录统计数据
+  const projectStats = db.prepare(`
+    SELECT project_tag as project, COUNT(*) as count 
+    FROM entries 
+    WHERE created_at >= ? AND project_tag IS NOT NULL AND project_tag != ''
+    GROUP BY project_tag 
+    ORDER BY count DESC
+  `).all(sevenDaysAgoStr) as Array<{ project: string; count: number }>;
+
+  const importanceStats = db.prepare(`
+    SELECT effort_tag as level, COUNT(*) as count 
+    FROM entries 
+    WHERE created_at >= ? AND effort_tag IS NOT NULL
+    GROUP BY effort_tag 
+    ORDER BY count DESC
+  `).all(sevenDaysAgoStr) as Array<{ level: string; count: number }>;
+
+  // 转换effort_tag到数字等级
+  const importanceNumeric = importanceStats.map(stat => ({
+    level: stat.level === '困难' ? 3 : stat.level === '中等' ? 2 : 1,
+    count: stat.count
+  }));
+
+  // 获取时间范围
+  const timeRange = {
+    start: sevenDaysAgoStr,
+    end: new Date().toISOString()
+  };
+
+  return {
+    entries,
+    todos: {
+      completed: completedTodos,
+      pending: pendingTodos,
+      total: totalTodos,
+      completionRate
+    },
+    productivity: {
+      dailyCompletions,
+      priorityDistribution,
+      categoryBreakdown
+    },
+    stats: {
+      total: entries.length,
+      projects: projectStats,
+      importance: importanceNumeric,
+      timeRange
+    }
+  };
 }

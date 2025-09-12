@@ -335,8 +335,8 @@ export async function generateCognitiveProfile(): Promise<CognitiveProfile | nul
         }
       },
       confidence_score: Math.min(events.length / 100, 1), // 基于数据量计算置信度
-      last_updated: new Date().toISOString(),
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      last_updated: new Date().toISOString()
     };
 
     return profile;

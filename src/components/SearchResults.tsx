@@ -5,6 +5,7 @@ import { removeEntry, updateEntryAction } from '@/lib/actions';
 import type { Entry, SearchResult } from '@/types/index';
 import { debug } from '@/lib/debug';
 import EmptyState from './ui/EmptyState';
+import ConfirmDialog from './ui/ConfirmDialog';
 
 
 interface SearchResultsProps {
@@ -22,6 +23,9 @@ export default function SearchResults({ results, onEntryDeleted }: SearchResults
   const [viewMode, setViewMode] = useState<'list' | 'project' | 'person' | 'importance'>('list');
   const [selectedEntry, setSelectedEntry] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entryId: number } | null>(null);
+  // 删除确认对话框状态
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   // 导航到上一个或下一个条目
   const navigateEntry = useCallback((direction: 'up' | 'down') => {
@@ -53,8 +57,6 @@ export default function SearchResults({ results, onEntryDeleted }: SearchResults
 
   // 删除记录
   const handleDelete = useCallback(async (id: number) => {
-    if (!confirm('确定要删除这条记录吗？')) return;
-
     try {
       setDeletingId(id);
       const result = await removeEntry(id);
@@ -68,8 +70,15 @@ export default function SearchResults({ results, onEntryDeleted }: SearchResults
       alert('删除失败，请重试');
     } finally {
       setDeletingId(null);
+      setShowDeleteConfirm(false);
+      setDeleteTargetId(null);
     }
   }, [onEntryDeleted]);
+
+  const openDeleteConfirm = (id: number) => {
+    setDeleteTargetId(id);
+    setShowDeleteConfirm(true);
+  };
 
   // 开始编辑标签
   const startEditTag = (entryId: number, tagType: string, currentValue: string) => {
@@ -106,20 +115,6 @@ export default function SearchResults({ results, onEntryDeleted }: SearchResults
   // 获取标签选项
   const getTagOptions = (tagType: string) => {
     switch (tagType) {
-      case 'attribute_tag':
-        return [
-          { value: '今日跟进', label: '📅 今日跟进' },
-          { value: '本周跟进', label: '📆 本周跟进' },
-          { value: '本月提醒', label: '🗓️ 本月提醒' },
-          { value: '无', label: '➖ 无' }
-        ];
-      case 'urgency_tag':
-        return [
-          { value: 'Jack 交办', label: '🔥 Jack 交办' },
-          { value: '重要承诺', label: '⚡ 重要承诺' },
-          { value: '临近 deadline', label: '⏰ 临近 deadline' },
-          { value: '无', label: '➖ 无' }
-        ];
       case 'daily_report_tag':
         return [
           { value: '核心进展', label: '📈 核心进展' },
@@ -212,7 +207,9 @@ export default function SearchResults({ results, onEntryDeleted }: SearchResults
           break;
         case 'Delete':
           e.preventDefault();
-          handleDelete(selectedEntry);
+          if (selectedEntry != null) {
+            openDeleteConfirm(selectedEntry);
+          }
           break;
         case 'Escape':
           e.preventDefault();
@@ -660,57 +657,7 @@ export default function SearchResults({ results, onEntryDeleted }: SearchResults
                           </span>
                         )}
                         
-                        {/* 属性标签 */}
-                        {entry.attribute_tag && entry.attribute_tag !== '无' ? (
-                          <span 
-                            className="px-2 py-1 rounded-full cursor-pointer hover:opacity-80" style={{backgroundColor: 'var(--success-color)', color: 'var(--text-on-primary)'}}
-                            onClick={(e) => {
-                               e.stopPropagation();
-                               startEditTag(entry.id, 'attribute_tag', entry.attribute_tag || '');
-                             }}
-                          >
-                            {entry.attribute_tag === '今日跟进' && '📅'}
-                            {entry.attribute_tag === '本周跟进' && '📆'}
-                            {entry.attribute_tag === '本月提醒' && '🗓️'}
-                            {' '}{highlightText(entry.attribute_tag, results.searchTerms)}
-                          </span>
-                        ) : (
-                          <span 
-                            className="px-2 py-1 rounded-full cursor-pointer hover:opacity-80" style={{backgroundColor: 'var(--card-glass)', color: 'var(--text-muted)'}}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditTag(entry.id, 'attribute_tag', '无');
-                            }}
-                          >
-                            📅 +
-                          </span>
-                        )}
-                        
-                        {/* 紧急度标签 */}
-                        {entry.urgency_tag && entry.urgency_tag !== '无' ? (
-                          <span 
-                            className="px-2 py-1 rounded-full cursor-pointer hover:opacity-80" style={{backgroundColor: 'var(--error-color)', color: 'var(--text-on-primary)'}}
-                            onClick={(e) => {
-                               e.stopPropagation();
-                               startEditTag(entry.id, 'urgency_tag', entry.urgency_tag || '');
-                             }}
-                          >
-                            {entry.urgency_tag === 'Jack 交办' && '🔥'}
-                            {entry.urgency_tag === '重要承诺' && '⚡'}
-                            {entry.urgency_tag === '临近 deadline' && '⏰'}
-                            {' '}{highlightText(entry.urgency_tag, results.searchTerms)}
-                          </span>
-                        ) : (
-                          <span 
-                            className="px-2 py-1 rounded-full cursor-pointer hover:opacity-80" style={{backgroundColor: 'var(--card-glass)', color: 'var(--text-muted)'}}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditTag(entry.id, 'urgency_tag', '无');
-                            }}
-                          >
-                            🔥 +
-                          </span>
-                        )}
+
                         
                         {/* 日报标签 */}
                         {entry.daily_report_tag && entry.daily_report_tag !== '无' ? (
@@ -741,14 +688,12 @@ export default function SearchResults({ results, onEntryDeleted }: SearchResults
                         
                         {/* 标签编辑器 */}
                         {renderTagEditor(entry.id, 'project_tag')}
-                         {renderTagEditor(entry.id, 'attribute_tag')}
-                         {renderTagEditor(entry.id, 'urgency_tag')}
                          {renderTagEditor(entry.id, 'daily_report_tag')}
                       </div>
                       
                       {/* 元数据信息 */}
                       <div className="flex items-center gap-4 text-xs" style={{color: 'var(--text-muted)'}}>
-                        <span>📅 {formatDate(entry.created_at)}</span>
+                        <span>📝 条目 #{entry.id}</span>
                         <span>📝 {entry.content.length} 字符</span>
                         {expandedEntries.has(entry.id) && (
                           <span>✅ 已展开</span>
@@ -758,7 +703,7 @@ export default function SearchResults({ results, onEntryDeleted }: SearchResults
                     
                     {/* 删除按钮 */}
                     <button
-                      onClick={() => handleDelete(entry.id)}
+                      onClick={() => openDeleteConfirm(entry.id)}
                       disabled={deletingId === entry.id}
                       className="ml-4 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
                       title="删除记录"
@@ -847,7 +792,7 @@ export default function SearchResults({ results, onEntryDeleted }: SearchResults
           
           <button
             onClick={() => {
-              handleDelete(contextMenu.entryId);
+              openDeleteConfirm(contextMenu.entryId);
               setContextMenu(null);
             }}
             className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:opacity-80" style={{color: 'var(--error-color)', backgroundColor: 'transparent'}} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--card-glass)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -860,15 +805,28 @@ export default function SearchResults({ results, onEntryDeleted }: SearchResults
         </div>
       )}
 
-      {/* 键盘快捷键提示 */}
-      {selectedEntry && (
-        <div className="fixed bottom-4 right-4 px-3 py-2 rounded-lg text-xs opacity-75" style={{backgroundColor: 'var(--card-background)', color: 'var(--text-primary)', border: '1px solid var(--card-border)'}}>
-          <div className="space-y-1">
-            <div>↑↓ 导航 | Enter 展开/收起</div>
-            <div>Delete 删除 | Esc 取消选择</div>
-          </div>
-        </div>
-      )}
+      {/* 删除确认对话框（居中显示） */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="确认删除"
+        description="您确定要删除这条记录吗？此操作无法撤销。"
+        cancelText="取消"
+        confirmText={deletingId != null ? '删除中...' : '确认删除'}
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={() => deleteTargetId != null && handleDelete(deleteTargetId)}
+        loading={deletingId != null}
+        danger
+      />
+
+       {/* 键盘快捷键提示 */}
+       {selectedEntry && (
+         <div className="fixed bottom-4 right-4 px-3 py-2 rounded-lg text-xs opacity-75" style={{backgroundColor: 'var(--card-background)', color: 'var(--text-primary)', border: '1px solid var(--card-border)'}}>
+           <div className="space-y-1">
+             <div>↑↓ 导航 | Enter 展开/收起</div>
+             <div>Delete 删除 | Esc 取消选择</div>
+           </div>
+         </div>
+       )}
     </div>
   );
 }

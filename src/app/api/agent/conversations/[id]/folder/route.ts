@@ -5,7 +5,7 @@ import { getDbConnection } from '@/lib/db';
 // 将会话从文件夹中移出
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const db = getDbConnection();
   

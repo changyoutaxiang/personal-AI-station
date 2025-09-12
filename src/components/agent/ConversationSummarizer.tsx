@@ -16,9 +16,26 @@ export default function ConversationSummarizer({
 }: ConversationSummarizerProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
+  const [showCompressConfirm, setShowCompressConfirm] = useState(false);
   const [isCompressed, setIsCompressed] = useState(false);
 
-  // 生成对话总结
+  // 显示压缩确认对话框
+  const confirmCompress = () => {
+    setShowCompressConfirm(true);
+  };
+
+  // 取消压缩
+  const handleCompressCancel = () => {
+    setShowCompressConfirm(false);
+  };
+
+  // 确认压缩
+  const handleCompressConfirm = () => {
+    setShowCompressConfirm(false);
+    performCompress();
+  };
+
+  // 执行压缩历史记录生成对话总结
   const handleGenerateSummary = async () => {
     if (!conversationId || messageCount < 10) {
       toast.error('对话需要至少10条消息才能生成总结');
@@ -53,15 +70,17 @@ export default function ConversationSummarizer({
   };
 
   // 压缩历史记录
-  const handleCompressHistory = async () => {
+  const handleCompressHistory = () => {
     if (!conversationId || messageCount < 20) {
       toast.error('对话需要至少20条消息才能进行压缩');
       return;
     }
 
-    if (!window.confirm('压缩历史记录将替换早期消息为总结，此操作不可逆转。确定要继续吗？')) {
-      return;
-    }
+    confirmCompress();
+  };
+
+  // 执行压缩操作
+  const performCompress = async () => {
 
     setIsGenerating(true);
     try {
@@ -208,6 +227,55 @@ export default function ConversationSummarizer({
           <p className="text-xs mt-1 text-green-600 dark:text-green-300">
             早期对话已转换为总结，token消耗已优化
           </p>
+        </div>
+      )}
+
+      {/* 压缩确认对话框 */}
+      {showCompressConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div 
+            className="p-6 rounded-lg shadow-lg max-w-sm w-full mx-4"
+            style={{
+              backgroundColor: 'var(--card-bg)',
+              border: '1px solid var(--card-border)'
+            }}
+          >
+            <h3 
+              className="text-lg font-semibold mb-4"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              确认压缩历史记录
+            </h3>
+            <p 
+              className="mb-6"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              压缩历史记录将替换早期消息为总结，此操作不可逆转。确定要继续吗？
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCompressCancel}
+                className="px-4 py-2 rounded transition-colors"
+                style={{
+                  backgroundColor: 'var(--card-glass)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--card-border)'
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleCompressConfirm}
+                className="px-4 py-2 rounded transition-colors"
+                style={{
+                  backgroundColor: '#ef4444',
+                  color: 'white'
+                }}
+              >
+                确认压缩
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

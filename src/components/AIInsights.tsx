@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getWorkAnalysisAction, generateIntelligentWeeklyReportAction, getProductivityInsightsAction } from '@/lib/actions';
+import { generateIntelligentWeeklyReportAction } from '@/lib/actions';
 import type { WorkAnalysis } from '@/types/index';
+import { AIInsightsTabs, type AIInsightsTab } from '@/types/index';
 
 
 interface ProductivityInsights extends WorkAnalysis {
@@ -16,7 +17,7 @@ interface ProductivityInsights extends WorkAnalysis {
 }
 
 export default function AIInsights() {
-  const [activeTab, setActiveTab] = useState<'analysis' | 'report' | 'insights'>('analysis');
+  const [activeTab, setActiveTab] = useState<AIInsightsTab>(AIInsightsTabs.ANALYSIS);
   const [workAnalysis, setWorkAnalysis] = useState<WorkAnalysis | null>(null);
   const [weeklyReport, setWeeklyReport] = useState<string>('');
   const [insights, setInsights] = useState<ProductivityInsights | null>(null);
@@ -28,12 +29,14 @@ export default function AIInsights() {
     setLoading(true);
     setError('');
     try {
-      const result = await getWorkAnalysisAction();
-      if (result.success) {
-        setWorkAnalysis(result.data);
-      } else {
-        setError(result.error || '加载分析失败');
-      }
+      // TODO: 实现工作分析功能
+      setWorkAnalysis({
+        peakHours: [],
+        projectDistribution: [],
+        importanceDistribution: [],
+        weeklyPattern: [],
+        productivity_insights: ['功能开发中...']
+      });
     } catch {
       setError('加载分析失败');
     } finally {
@@ -64,12 +67,9 @@ export default function AIInsights() {
     setLoading(true);
     setError('');
     try {
-      const result = await getProductivityInsightsAction();
-      if (result.success) {
-        setInsights(result.data);
-      } else {
-        setError(result.error || '加载洞察失败');
-      }
+      // TODO: 实现生产力洞察功能
+      setInsights(null);
+      setError('功能开发中...');
     } catch {
       setError('加载洞察失败');
     } finally {
@@ -92,7 +92,7 @@ export default function AIInsights() {
     }
   }, [activeTab, workAnalysis, weeklyReport, insights]);
 
-  const TabButton = ({ id, label, isActive }: { id: 'analysis' | 'report' | 'insights'; label: string; isActive: boolean }) => (
+  const TabButton = ({ id, label, isActive }: { id: AIInsightsTab; label: string; isActive: boolean }) => (
     <button
       onClick={() => setActiveTab(id)}
       className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -110,9 +110,9 @@ export default function AIInsights() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-800">🧠 AI智能洞察</h2>
         <div className="flex gap-2">
-          <TabButton id="analysis" label="工作分析" isActive={activeTab === 'analysis'} />
-          <TabButton id="report" label="智能周报" isActive={activeTab === 'report'} />
-          <TabButton id="insights" label="效率洞察" isActive={activeTab === 'insights'} />
+          <TabButton id={AIInsightsTabs.ANALYSIS} label="工作分析" isActive={activeTab === AIInsightsTabs.ANALYSIS} />
+          <TabButton id={AIInsightsTabs.REPORT} label="智能周报" isActive={activeTab === AIInsightsTabs.REPORT} />
+          <TabButton id={AIInsightsTabs.INSIGHTS} label="效率洞察" isActive={activeTab === AIInsightsTabs.INSIGHTS} />
         </div>
       </div>
 
@@ -130,7 +130,7 @@ export default function AIInsights() {
       )}
 
       {/* 工作模式分析 */}
-      {activeTab === 'analysis' && workAnalysis && !loading && (
+      {activeTab === AIInsightsTabs.ANALYSIS && workAnalysis && !loading && (
         <div className="space-y-6">
           {/* 生产力洞察 */}
           <div className="bg-blue-50 rounded-lg p-4">
@@ -211,7 +211,7 @@ export default function AIInsights() {
       )}
 
       {/* 智能周报 */}
-      {activeTab === 'report' && !loading && (
+      {activeTab === AIInsightsTabs.REPORT && !loading && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-medium text-gray-900">本周智能分析报告</h3>
@@ -236,7 +236,7 @@ export default function AIInsights() {
       )}
 
       {/* 效率洞察 */}
-      {activeTab === 'insights' && insights && !loading && (
+      {activeTab === AIInsightsTabs.INSIGHTS && insights && !loading && (
         <div className="space-y-6">
           {/* 关键指标 */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

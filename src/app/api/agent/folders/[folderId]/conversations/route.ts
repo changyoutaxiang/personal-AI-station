@@ -5,7 +5,7 @@ import { getDbConnection } from '@/lib/db';
 // 将会话添加到文件夹
 export async function POST(
   request: NextRequest,
-  { params }: { params: { folderId: string } }
+  { params }: { params: Promise<{ folderId: string }> }
 ) {
   const db = getDbConnection();
   

@@ -160,8 +160,7 @@ export async function POST(request: NextRequest) {
             conversationId,
             userMessage: {
               id: userMessage.id,
-              content: userMessage.content,
-              created_at: userMessage.created_at
+              content: userMessage.content
             }
           };
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialData)}\n\n`));
@@ -206,8 +205,7 @@ export async function POST(request: NextRequest) {
               assistant: {
                 id: assistantMessage.id,
                 content: fullContent,
-                tokensUsed: totalTokens,
-                created_at: assistantMessage.created_at
+                tokensUsed: totalTokens
               }
             };
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalData)}\n\n`));

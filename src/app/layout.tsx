@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Pacifico } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import GlobalHomeButton from "@/components/ui/GlobalHomeButton";
 
 
 const geistSans = Geist({
@@ -41,6 +42,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable} antialiased`}
       >
         <ThemeProvider>
+          <GlobalHomeButton />
           {children}
         </ThemeProvider>
       </body>

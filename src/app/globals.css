@@ -785,7 +785,6 @@ body {
       color-mix(in oklab, var(--card-border) 60%, transparent),
       color-mix(in oklab, var(--flow-primary) 35%, transparent)
     ) border-box;
-  box-shadow: var(--card-shadow);
 }
 
 .glass-border-soft:hover {

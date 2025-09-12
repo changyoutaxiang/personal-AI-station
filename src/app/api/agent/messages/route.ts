@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { 
   listMessagesByConversation,
   getConversationById,
-  db
+  db,
+  initDatabase
 } from '@/lib/db';
+import { database } from '@/lib/database';
 import { debug } from '@/lib/debug';
+
+// 确保数据库初始化（SQLite兼容性）
+if (process.env.DATABASE_TYPE !== 'supabase') {
+  initDatabase();
+}
 
 export async function GET(request: NextRequest) {
   try {

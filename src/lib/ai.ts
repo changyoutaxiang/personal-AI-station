@@ -7,9 +7,10 @@ import type { WorkAnalysis, Entry } from '@/types/index';
 // 移除数据库相关导入，避免客户端组件错误
 // import { getKnowledgeContext } from './knowledge-manager';
 // import { getWeeklyReportData } from './db';
-import { getAIModelConfig } from './db';
+import { getAIModelConfig, getEnhancedWeeklyReportData } from './db';
 import { debug } from '@/lib/debug';
-import { aiCache } from './ai-cache';
+import { chatCompletion as aiChatCompletion } from './ai-client';
+
 
 // 文本特征类型定义
 interface TextFeatures {
@@ -60,7 +61,8 @@ interface SimilarityResponse {
     project_tag?: string;
     person_tag?: string;
     importance_tag?: number;
-    created_at: string;
+    created_at?: string;
+    updated_at?: string;
   }>;
   error?: string;
 }
@@ -81,6 +83,7 @@ interface OpenRouterResponse {
   choices: Array<{
     message: {
       content: string;
+      reasoning?: string; // 某些模型（如deepseek-r1）的思维链字段
     };
   }>;
   usage?: {
@@ -92,15 +95,6 @@ interface OpenRouterResponse {
 }
 
 export async function polishText(originalText: string): Promise<PolishTextResponse> {
-  // 环境变量检查
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'AI润色功能未配置，请联系管理员'
-    };
-  }
-
   // 输入验证
   if (!originalText || originalText.trim().length === 0) {
     return {
@@ -115,13 +109,6 @@ export async function polishText(originalText: string): Promise<PolishTextRespon
       success: false,
       error: '文本长度超出限制（最多500字符）'
     };
-  }
-
-  // 检查缓存
-  const cachedResult = aiCache.get<PolishTextResponse>('polish_text', originalText);
-  if (cachedResult) {
-    debug.log('文本润色缓存命中');
-    return cachedResult;
   }
 
   // 构建润色提示词
@@ -139,54 +126,31 @@ export async function polishText(originalText: string): Promise<PolishTextRespon
 请直接输出优化后的文本，不需要解释过程。`;
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000',
-        'X-Title': 'Digital Brain',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: getAIModelConfig('polish_text'),
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 800,
-        top_p: 0.9
-      })
+    const result = await aiChatCompletion({
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      model: getAIModelConfig('polish_text'),
+      temperature: 0.3,
+      max_tokens: 800,
+      top_p: 0.9
     });
 
-    if (!response.ok) {
-      throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || '润色服务暂时不可用'
+      };
     }
 
-    const data: OpenRouterResponse = await response.json();
-
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
-
-    if (!data.choices || data.choices.length === 0) {
-      throw new Error('API返回数据格式错误');
-    }
-
-    const polishedText = data.choices[0].message.content.trim();
-
-    const result = {
+    return {
       success: true,
-      polishedText,
-      tokensUsed: data.usage?.total_tokens
+      polishedText: result.content?.trim() || '',
+      tokensUsed: result.tokensUsed
     };
-
-    // 缓存结果（润色结果缓存24小时）
-    aiCache.set('polish_text', originalText, result, undefined, 24 * 60 * 60 * 1000);
-
-    return result;
 
   } catch (error) {
     debug.error('文本润色失败:', error);
@@ -201,14 +165,6 @@ export async function polishText(originalText: string): Promise<PolishTextRespon
  * AI生成犀利提问
  */
 export async function generateQuestions(content: string): Promise<GenerateQuestionsResponse> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'AI功能未配置，请联系管理员'
-    };
-  }
-
   if (!content || content.trim().length === 0) {
     return {
       success: false,
@@ -216,18 +172,11 @@ export async function generateQuestions(content: string): Promise<GenerateQuesti
     };
   }
 
-  // 检查缓存
-  const cachedResult = aiCache.get<GenerateQuestionsResponse>('generate_questions', content);
-  if (cachedResult) {
-    debug.log('犀利提问缓存命中');
-    return cachedResult;
-  }
-
   // 获取个人背景信息 - 暂时注释掉数据库调用
   // const knowledgeContext = getKnowledgeContext();
   const knowledgeContext = '';
   
-  const prompt = `你是一个思维敏锐的提问专家。请针对以下内容，提出3-5个犀利、深入的问题。
+  const prompt = `你是一个思维敏锐的提问专家。请针对以下内容，提出5个犀利、深入的问题。
 
 ${knowledgeContext}
 
@@ -241,71 +190,73 @@ ${knowledgeContext}
 
 要分析的内容：${content}
 
-请以数组形式返回问题，每个问题独立一行，格式如下：
-1. [问题1]
-2. [问题2]
-3. [问题3]
-...
+请严格按照以下格式返回问题，每个问题必须以问号结尾：
 
-问题要具体、有针对性，避免空泛的提问。直接返回问题列表，不需要其他解释。`;
+1. [第一个犀利问题？]
+2. [第二个深入问题？]
+3. [第三个探讨性问题？]
+4. [第四个挑战性问题？]
+5. [第五个启发性问题？]
+
+要求：
+- 每个问题必须以问号结尾
+- 问题要具体、有针对性，避免空泛
+- 不要添加任何解释文字
+- 直接返回编号的问题列表
+- 确保每个问题都是真正的疑问句，包含问号`;
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000',
-        'X-Title': 'Digital Brain',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: getAIModelConfig('generate_questions'),
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
-        top_p: 0.9
-      })
+    const result = await aiChatCompletion({
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      model: 'google/gemini-2.5-flash', // 使用更适合生成问题的模型
+      temperature: 0.7,
+      max_tokens: 2000,
+      top_p: 0.9
     });
 
-    if (!response.ok) {
-      throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'AI提问服务暂时不可用'
+      };
     }
 
-    const data: OpenRouterResponse = await response.json();
-
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
-
-    if (!data.choices || data.choices.length === 0) {
-      throw new Error('API返回数据格式错误');
-    }
-
-    const responseText = data.choices[0].message.content.trim();
+    let responseText = result.content?.trim() || '';
     
-    // 解析问题列表
+    // 如果仍然没有有效内容，记录调试信息
+    if (!responseText) {
+      debug.error('AI返回内容为空');
+      throw new Error('AI返回内容为空');
+    }
+    
+    // 清理响应文本，移除可能的解释文字
+    responseText = cleanResponseText(responseText);
+    
+    // 解析问题列表 - 改进版
     const questions = responseText
       .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0)
       .map(line => line.replace(/^\d+\.\s*/, '')) // 移除序号
-      .filter(line => line.length > 5); // 过滤太短的行
+      .filter(line => line.length > 5) // 过滤太短的行
+      .filter(line => {
+        // 额外过滤：确保行看起来像问题（包含问号或是合理的疑问句）
+        const hasQuestionMark = line.includes('？') || line.includes('?');
+        const isReasonableQuestion = /^(\w|[\u4e00-\u9fff])/.test(line) && !line.includes('问题') && !line.includes('问题列表') && !line.includes('最终问题');
+        return hasQuestionMark || isReasonableQuestion;
+      })
+      .slice(0, 5); // 限制最多返回5个问题
 
-    const result = {
+    return {
       success: true,
       questions,
-      tokensUsed: data.usage?.total_tokens
+      tokensUsed: result.tokensUsed
     };
-
-    // 缓存结果（提问结果缓存12小时）
-    aiCache.set('generate_questions', content, result, undefined, 12 * 60 * 60 * 1000);
-
-    return result;
 
   } catch (error) {
     debug.error('生成问题失败:', error);
@@ -314,6 +265,31 @@ ${knowledgeContext}
       error: error instanceof Error ? error.message : 'AI提问服务暂时不可用'
     };
   }
+}
+
+/**
+ * 清理AI响应文本，移除解释文字，只保留问题列表
+ */
+function cleanResponseText(text: string): string {
+  // 如果文本以编号开头，说明格式正确，直接返回
+  if (/^\d+\./.test(text.trim())) {
+    return text.trim();
+  }
+  
+  // 尝试提取编号的问题列表
+  const numberedQuestions = text.match(/\d+\.\s*[^\n]+/g);
+  if (numberedQuestions && numberedQuestions.length > 0) {
+    return numberedQuestions.join('\n');
+  }
+  
+  // 如果没有编号问题，尝试提取包含问号的句子
+  const questionSentences = text.match(/[^.!?]*[？?][^.!?]*/g);
+  if (questionSentences && questionSentences.length > 0) {
+    return questionSentences.join('\n');
+  }
+  
+  // 如果都没有，返回原文本（但这种情况很少见）
+  return text.trim();
 }
 
 /**
@@ -515,11 +491,15 @@ ${candidateTexts}
 
     // 使用新的安全OpenRouter客户端
     const { simpleChatCompletion } = await import('./openrouter-client');
+    const { getOpenRouterApiKey } = await import('./db');
+    
+    const dbApiKey = getOpenRouterApiKey();
     
     const response = await simpleChatCompletion(
       getAIModelConfig('analyze_semantic_similarity'),
       [{ role: 'user', content: prompt }],
       {
+        apiKey: dbApiKey || undefined, // 使用数据库API Key，如果没有则fallback到环境变量
         temperature: 0.1, // 低温度确保结果一致性
         max_tokens: 1500,
         timeout: 20000, // 20秒超时
@@ -599,13 +579,7 @@ export async function findSimilarEntries(content: string, allEntries: Entry[]): 
       };
     }
 
-    // 检查缓存（基于内容和数据条目数量生成缓存键）
-    const cacheKey = `${content}_${allEntries.length}`;
-    const cachedResult = aiCache.get<SimilarityResponse>('find_similar_entries', cacheKey);
-    if (cachedResult) {
-      debug.log('相似内容缓存命中');
-      return cachedResult;
-    }
+
     
     // 第一阶段：基础过滤，选择可能相关的候选内容
     const inputFeatures = extractTextFeatures(content);
@@ -641,8 +615,7 @@ export async function findSimilarEntries(content: string, allEntries: Entry[]): 
       similarEntries: finalResults
     };
 
-    // 缓存结果（相似内容缓存1小时，因为数据可能经常变化）
-    aiCache.set('find_similar_entries', cacheKey, result, undefined, 60 * 60 * 1000);
+
 
     return result;
   } catch (error) {
@@ -675,7 +648,8 @@ export function analyzeWorkPatterns(entries: Entry[]): WorkAnalysis {
   const dayCounts: { [key: string]: number } = {};
 
   entries.forEach(entry => {
-    const date = new Date(entry.created_at);
+    // 使用当前时间作为默认值，因为created_at字段已被移除
+    const date = new Date();
     const hour = date.getHours();
     const dayName = date.toLocaleDateString('zh-CN', { weekday: 'long' });
 
@@ -754,14 +728,6 @@ export function analyzeWorkPatterns(entries: Entry[]): WorkAnalysis {
  * AI驱动的智能周报生成
  */
 export async function generateIntelligentWeeklyReport(entries: Entry[]): Promise<{ success: boolean; report?: string; error?: string }> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'AI功能未配置，请联系管理员'
-    };
-  }
-
   if (!entries || entries.length === 0) {
     return {
       success: true,
@@ -822,47 +788,29 @@ ${dataContext}
 5. 重点关注个人成长和效率提升`;
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-        'X-Title': 'Digital Brain',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: getAIModelConfig('generate_intelligent_weekly_report'),
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-        top_p: 0.9
-      })
+    const result = await aiChatCompletion({
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      model: getAIModelConfig('weekly_report'),
+      temperature: 0.7,
+      max_tokens: 2000,
+      top_p: 0.9
     });
 
-    if (!response.ok) {
-      throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || '智能周报服务暂时不可用'
+      };
     }
-
-    const data: OpenRouterResponse = await response.json();
-
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
-
-    if (!data.choices || data.choices.length === 0) {
-      throw new Error('API返回数据格式错误');
-    }
-
-    const report = data.choices[0].message.content.trim();
 
     return {
       success: true,
-      report
+      report: result.content?.trim() || ''
     };
 
   } catch (error) {
@@ -878,14 +826,6 @@ ${dataContext}
  * 极简增长智能体分析
  */
 export async function generateMinimalistAnalysis(content: string): Promise<{ success: boolean; analysis?: string; error?: string; tokensUsed?: number }> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'AI功能未配置，请联系管理员'
-    };
-  }
-
   if (!content || content.trim().length === 0) {
     return {
       success: false,
@@ -954,49 +894,33 @@ export async function generateMinimalistAnalysis(content: string): Promise<{ suc
 请严格按照上述框架进行分析，确保每个建议都能追溯到《极简增长》的核心理念。语气要专业、启发性，像一位经验丰富的首席顾问。`;
 
   try {
-    // 设置20秒超时
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
-    
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-        'X-Title': 'Digital Brain',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: getAIModelConfig('generate_minimalist_analysis'),
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 1500,
-        top_p: 0.9
-      }),
-      signal: controller.signal
+    const result = await aiChatCompletion({
+      messages: [{ role: 'user', content: prompt }],
+      model: getAIModelConfig('generate_minimalist_analysis'),
+      temperature: 0.7,
+      max_tokens: 1500,
+      top_p: 0.9
     });
-    
-    clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      throw new Error(`API请求失败: ${response.status}`);
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'AI分析服务暂时不可用'
+      };
     }
 
-    const data: OpenRouterResponse = await response.json();
-    
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
-
-    const analysis = data.choices[0]?.message?.content;
+    const analysis = result.content;
     if (!analysis) {
-      throw new Error('AI返回内容为空');
+      return {
+        success: false,
+        error: 'AI返回内容为空'
+      };
     }
 
     return {
       success: true,
       analysis,
-      tokensUsed: data.usage?.total_tokens
+      tokensUsed: result.tokensUsed
     };
     
   } catch (error) {
@@ -1023,88 +947,7 @@ export async function generateMinimalistAnalysis(content: string): Promise<{ suc
   }
 }
 
-/**
- * 通用 Chat Completion 封装
- * 用于执行聊天对话，支持动态模型和可选的 system prompt
- */
-export async function chatCompletion(opts: {
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
-  model?: string;
-  temperature?: number;
-  max_tokens?: number;
-  top_p?: number;
-}): Promise<{ success: boolean; content?: string; tokensUsed?: number; error?: string }> {
-  // 环境变量检查
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'AI功能未配置，请联系管理员'
-    };
-  }
-
-  // 输入验证
-  if (!opts.messages || opts.messages.length === 0) {
-    return {
-      success: false,
-      error: '消息列表为空'
-    };
-  }
-
-  // 获取模型配置
-  const model = opts.model || getAIModelConfig('agent_chat');
-  const temperature = opts.temperature ?? 0.7;
-  const max_tokens = opts.max_tokens ?? 1000;
-  const top_p = opts.top_p ?? 0.9;
-
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000',
-        'X-Title': 'Digital Brain',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        messages: opts.messages,
-        temperature,
-        max_tokens,
-        top_p
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
-    }
-
-    const data: OpenRouterResponse = await response.json();
-
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
-
-    if (!data.choices || data.choices.length === 0) {
-      throw new Error('API返回数据格式错误');
-    }
-
-    const content = data.choices[0].message.content.trim();
-
-    return {
-      success: true,
-      content,
-      tokensUsed: data.usage?.total_tokens
-    };
-
-  } catch (error) {
-    debug.error('Chat completion 失败:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Chat completion 服务暂时不可用'
-    };
-  }
-}
+// chatCompletion函数已移至ai-client.ts，使用aiChatCompletion代替
 
 /**
  * 生成简化版周报（基于最近7天数据）
@@ -1112,51 +955,60 @@ export async function chatCompletion(opts: {
  */
 export async function generateSimpleWeeklyReport(): Promise<WeeklyReportResponse> {
   try {
-    // 获取周报数据 - 暂时注释掉数据库调用
-  // const weeklyData = getWeeklyReportData();
-  const weeklyData = { 
-      entries: [], 
-      analyses: [],
-      stats: {
-        total: 0,
-        projects: [],
-        importance: [],
-        timeRange: { start: '', end: '' }
-      }
-    }; // 临时空数据
+    debug.log('📊 开始生成综合周报（记录+TODO）...');
     
-    if (weeklyData.entries.length === 0) {
+    // 获取增强的周报数据（记录+TODO）
+    const enhancedData = getEnhancedWeeklyReportData();
+    
+    // 检查数据完整性
+    if (enhancedData.entries.length === 0 && enhancedData.todos.total === 0) {
       return {
         success: true,
         report: {
-          summary: "本周暂无记录数据。",
+          summary: "本周暂无记录和任务数据。",
           highlights: [],
-          insights: ["建议开始记录日常工作内容，这样可以更好地分析工作模式。"],
-          recommendations: ["试试添加一些工作记录来开始你的数字大脑之旅！"]
+          insights: ["建议开始记录日常工作内容和创建待办任务，这样可以更好地分析工作模式。"],
+          recommendations: ["试试添加一些工作记录和待办事项来开始你的数字大脑之旅！"]
         }
       };
     }
 
-    // 使用现有的AI周报生成功能
-    const aiResult = await generateIntelligentWeeklyReport(weeklyData.entries);
+    // 构建综合分析的AI提示词
+    const enhancedPrompt = buildEnhancedWeeklyPrompt(enhancedData);
+    
+    debug.log('🤖 开始AI分析，数据概况:', {
+      记录数: enhancedData.entries.length,
+      总任务数: enhancedData.todos.total,
+      完成率: `${enhancedData.todos.completionRate}%`
+    });
+
+    // 调用AI进行综合分析
+    const aiResult = await aiChatCompletion({
+      messages: [{ role: 'user', content: enhancedPrompt }],
+      model: getAIModelConfig('weekly_report'),
+      temperature: 0.7,
+      max_tokens: 2000
+    });
     
     if (!aiResult.success) {
+      debug.error('❌ AI分析失败:', aiResult.error);
       return {
         success: false,
-        error: aiResult.error
+        error: aiResult.error || 'AI分析失败'
       };
     }
 
     // 解析AI生成的报告并结构化
-    const report = parseWeeklyReport(aiResult.report || '', weeklyData);
+    const report = parseEnhancedWeeklyReport(aiResult.content || '', enhancedData);
     
+    debug.log('✅ 综合周报生成成功');
     return {
       success: true,
       report,
-      tokensUsed: 0 // 暂时不统计token使用
+      tokensUsed: aiResult.tokensUsed || 0
     };
   } catch (error) {
-    debug.error('生成简化周报失败:', error);
+    debug.error('❌ 生成综合周报失败:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : '周报生成失败'
@@ -1165,7 +1017,284 @@ export async function generateSimpleWeeklyReport(): Promise<WeeklyReportResponse
 }
 
 /**
- * 解析AI生成的周报内容并结构化
+ * 构建增强的AI日报提示词（记录+TODO当日分析）
+ */
+export function buildEnhancedDailyPrompt(entries: Entry[], todos: { completed: any[]; pending: any[]; total: number; completionRate: number }, date: string): string {
+  return `# 角色定位
+你是一位资深的个人效率顾问和工作模式分析师，拥有10年以上的生产力研究经验。你擅长从数据中发现模式、识别效率瓶颈，并提供具有实际操作价值的改进建议。
+
+# 专业背景
+- 熟悉GTD（Getting Things Done）方法论
+- 精通时间管理和能量管理技术
+- 具备行为模式分析和习惯优化经验
+- 善于将复杂数据转化为可操作的洞察
+
+# 分析任务
+基于 ${date} 的工作记录和任务完成情况，生成一份专业级的个人工作日报。要求数据驱动、洞察深刻、建议具体。
+
+## 📊 今日数据概览
+### 工作记录
+- 记录总数：${entries.length}条
+- 主要项目：${[...new Set(entries.filter(e => e.project_tag).map(e => e.project_tag))].join(', ') || '无项目标签'}
+- 重要程度分布：${entries.filter(e => e.effort_tag === '困难').length}个困难任务，${entries.filter(e => e.effort_tag === '中等').length}个中等任务，${entries.filter(e => e.effort_tag === '轻松').length}个轻松任务
+
+### 任务完成情况
+- ✅ 已完成：${todos.completed.length}个任务
+- ⏳ 待完成：${todos.pending.length}个任务
+- 📊 完成率：${todos.completionRate}%
+- 🎯 任务总计：${todos.total}个
+
+## 🧠 分析方法论
+请按照以下思维链进行分析（请在分析中体现这个思考过程）：
+
+**Step 1: 成就识别**
+- 今日最重要的3个成就是什么？
+- 哪些任务体现了高价值产出？
+- 完成率${todos.completionRate}%代表什么水平？
+
+**Step 2: 效率模式分析**
+- 从记录时间分布看，工作节奏如何？
+- 困难任务的处理方式是否高效？
+- 任务类型与个人能力匹配度如何？
+
+**Step 3: 时间价值评估**
+- 哪些活动产生了最高的价值回报？
+- 是否存在时间投入与产出不匹配的情况？
+- 项目优先级安排是否合理？
+
+**Step 4: 瓶颈诊断**
+- 什么因素限制了今日的生产力？
+- 未完成任务的共同特征是什么？
+- 是否存在可以系统性改进的模式？
+
+**Step 5: 明日规划建议**
+- 基于今日模式，明日应如何优化？
+- 哪些成功经验值得复制？
+- 具体的改进行动是什么？
+
+## 📝 输出格式要求
+请严格按照以下JSON结构输出（不要包含markdown代码块标记）：
+
+{
+  "date": "${date}",
+  "executive_summary": "今日核心成就的高管级别摘要（50字内）",
+  "key_achievements": [
+    "具体成就1（体现价值和影响）",
+    "具体成就2（量化结果）",
+    "具体成就3（质性突破）"
+  ],
+  "efficiency_analysis": {
+    "completion_rate_assessment": "基于${todos.completionRate}%完成率的专业评估",
+    "time_allocation": "时间分配的优缺点分析",
+    "energy_management": "精力投入与产出的匹配分析"
+  },
+  "insights": [
+    "今日工作模式的关键洞察1",
+    "行为模式发现2",
+    "效率规律识别3"
+  ],
+  "bottlenecks": [
+    "具体瓶颈问题1（如果存在）",
+    "系统性改进机会2（如果发现）"
+  ],
+  "tomorrow_optimization": {
+    "priority_focus": "明日最应该关注的优先事项",
+    "method_suggestions": "具体的方法和工具建议",
+    "habit_adjustments": "小的习惯调整建议"
+  },
+  "actionable_tips": [
+    "立即可执行的改进建议1",
+    "操作性强的优化建议2",
+    "具体的工具或方法建议3"
+  ]
+}
+
+## 💡 分析原则
+1. **数据驱动**：每个观点都要有数据支撑
+2. **价值导向**：关注高价值活动和成果
+3. **具体可操作**：避免空洞建议，提供具体方案
+4. **积极建设性**：既要发现问题也要提供解决路径
+5. **个性化洞察**：基于个人独特的工作模式给出建议
+
+开始你的专业分析：`;
+}
+
+/**
+ * 构建增强的AI周报提示词（记录+TODO综合分析）
+ */
+function buildEnhancedWeeklyPrompt(data: import('./db').EnhancedWeeklyData): string {
+  const { entries, todos, productivity, stats } = data;
+
+  return `# 角色定位
+你是一位具有15年经验的高级管理咨询师和个人效能教练，专门从事工作模式分析和生产力优化。你曾为多家Fortune 500公司提供效率提升咨询，擅长从复杂数据中识别关键成功模式。
+
+# 专业认证与背景
+- 认证生产力顾问（CPP）
+- GTD®认证教练
+- 精通OKR目标管理方法论
+- 时间块管理法（Time Blocking）专家
+- 熟悉PDCA持续改进循环
+- 能量管理和认知负荷理论实践者
+
+# 分析任务
+为期间 ${stats.timeRange.start.split('T')[0]} 至 ${stats.timeRange.end.split('T')[0]} 的工作数据生成一份企业级个人效能分析报告。要求：战略性思维、数据驱动洞察、可执行建议。
+
+## 📊 核心数据概览
+### 工作记录维度
+- 📝 记录总量：${entries.length}条工作记录
+- 🏷️ 项目分布：${stats.projects.map(p => `${p.project}(${p.count}条)`).join(', ') || '无项目分类'}
+- ⭐ 复杂度分析：${entries.filter(e => e.effort_tag === '困难').length}个高难度，${entries.filter(e => e.effort_tag === '中等').length}个中等复杂度，${entries.filter(e => e.effort_tag === '轻松').length}个简单任务
+
+### 任务执行维度  
+- ✅ 完成任务：${todos.completed.length}个（${todos.completionRate}%完成率）
+- ⏳ 待处理：${todos.pending.length}个任务
+- 🎯 总任务量：${todos.total}个
+
+### 优先级管理维度
+- 🔴 高优先级：${productivity.priorityDistribution.high}个（战略级任务）
+- 🟡 中优先级：${productivity.priorityDistribution.medium}个（重要任务）
+- 🟢 低优先级：${productivity.priorityDistribution.low}个（日常任务）
+
+### 生活工作平衡维度
+- 💼 工作任务：${productivity.categoryBreakdown.work}个
+- 🏠 生活管理：${productivity.categoryBreakdown.life}个
+- 📚 学习成长：${productivity.categoryBreakdown.study}个
+- 💪 健康管理：${productivity.categoryBreakdown.health}个
+- 📦 其他类别：${productivity.categoryBreakdown.other}个
+
+### 执行节奏分析
+**每日完成分布**：${productivity.dailyCompletions.map(d => `${d.date.split('-')[2]}号:${d.count}个`).join(', ')}
+
+## 🧠 专业分析框架
+采用SWOT+PDCA+OKR综合分析法，请严格按照以下思维链条进行分析：
+
+### Phase 1: 战略性现状评估
+1. **整体表现基准**：${todos.completionRate}%的完成率在专业标准中处于什么水平？
+2. **价值创造分析**：哪些活动产生了最高的价值密度？
+3. **资源配置评估**：时间和精力的分配是否与目标优先级匹配？
+
+### Phase 2: 效能模式识别
+1. **高效时段发现**：从每日完成分布中识别黄金工作时间
+2. **任务类型偏好**：分析个人在不同复杂度任务上的表现差异
+3. **项目管理模式**：评估多项目并行处理的效果
+
+### Phase 3: 系统性瓶颈诊断
+1. **完成率障碍**：什么系统性因素阻碍了100%完成率？
+2. **优先级失配**：高优先级任务是否得到应有的关注？
+3. **认知负荷分析**：任务复杂度是否超出舒适区？
+
+### Phase 4: 对标与趋势分析
+1. **同期对比**：与个人历史数据的纵向比较
+2. **行业基准**：与同类专业人士的横向对比
+3. **增长轨迹**：识别可持续的改进趋势
+
+### Phase 5: 战略性改进建议
+1. **系统级优化**：需要建立哪些新的工作系统？
+2. **习惯级调整**：哪些微习惯能带来复利效应？
+3. **工具级升级**：什么方法论或工具能提升效率？
+
+## 📝 专业报告输出格式
+请严格按照以下企业级报告结构输出（JSON格式，无代码块标记）：
+
+{
+  "period": "${stats.timeRange.start.split('T')[0]} 至 ${stats.timeRange.end.split('T')[0]}",
+  "executive_summary": "一句话总结本周的核心成就和关键发现（董事会级别摘要）",
+  "key_performance_indicators": {
+    "completion_rate": "${todos.completionRate}%",
+    "efficiency_score": "基于多维度数据计算的效率评分（1-10分）",
+    "priority_management_index": "优先级管理效果评估"
+  },
+  "strategic_achievements": [
+    "最重要的战略性成果1（量化impact）",
+    "关键突破2（质性价值）",
+    "系统性改进3（可复制价值）"
+  ],
+  "performance_patterns": {
+    "peak_productivity_insights": "高效时段和条件分析",
+    "task_type_optimization": "任务类型处理的优劣势模式",
+    "workflow_efficiency": "工作流程的顺畅度评估"
+  },
+  "bottleneck_analysis": {
+    "primary_constraints": "限制效能的主要因素",
+    "systemic_issues": "需要系统性解决的问题",
+    "opportunity_gaps": "未充分利用的效率提升机会"
+  },
+  "competitive_insights": [
+    "相对个人历史表现的提升点",
+    "在专业标准中的定位分析",
+    "领先或落后的具体维度"
+  ],
+  "next_week_strategy": {
+    "priority_focus": "下周的战略重点（基于数据驱动）",
+    "methodology_upgrades": "建议采用的新方法或工具",
+    "habit_system_design": "需要建立的新习惯系统"
+  },
+  "actionable_playbook": [
+    "立即执行级建议（今天就能开始）",
+    "本周实施级改进（7天内完成）", 
+    "系统建设级优化（长期持续改进）"
+  ]
+}
+
+## 🎯 分析品质标准
+1. **数据准确性**：每个结论都要有具体数据支撑
+2. **洞察深度**：超越表面现象，发现根本模式
+3. **建议实用性**：所有建议都必须具备立即可操作性
+4. **战略高度**：从个人发展战略角度思考问题
+5. **个性化定制**：基于个人独特数据模式给出专属建议
+
+## 💼 专业分析开始
+请以资深管理咨询师的视角，开始你的深度分析：`;
+}
+
+/**
+ * 解析增强版AI生成的周报内容
+ */
+function parseEnhancedWeeklyReport(aiReport: string, data: import('./db').EnhancedWeeklyData): {
+  summary: string;
+  highlights: string[];
+  insights: string[];
+  recommendations: string[];
+} {
+  try {
+    // 尝试解析JSON格式的AI回复
+    const jsonMatch = aiReport.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        summary: parsed.summary || `本周完成${data.todos.completed.length}个任务，记录${data.entries.length}条内容，完成率${data.todos.completionRate}%`,
+        highlights: parsed.highlights || [],
+        insights: parsed.insights || [],
+        recommendations: parsed.recommendations || []
+      };
+    }
+  } catch (error) {
+    debug.log('JSON解析失败，使用文本解析');
+  }
+
+  // 回退到文本解析
+  return {
+    summary: `本周完成${data.todos.completed.length}个任务，记录${data.entries.length}条内容，完成率${data.todos.completionRate}%。主要项目：${data.stats.projects.map(p => p.project).join(', ') || '无'}`,
+    highlights: [
+      `📈 任务完成率：${data.todos.completionRate}%`,
+      `📝 工作记录：${data.entries.length}条`,
+      `🎯 高优先级任务：${data.productivity.priorityDistribution.high}个`,
+      `💼 工作类任务：${data.productivity.categoryBreakdown.work}个`
+    ],
+    insights: [
+      aiReport.slice(0, 300) + (aiReport.length > 300 ? '...' : ''),
+      data.todos.completionRate >= 80 ? '任务完成率表现优秀，继续保持！' : '任务完成率有提升空间，建议优化时间管理。'
+    ],
+    recommendations: [
+      data.productivity.priorityDistribution.high > 0 && data.todos.completionRate < 100 ? '优先处理高优先级待办任务' : '继续保持良好的任务管理习惯',
+      data.entries.length < 5 ? '增加工作记录的频率，便于后续分析' : '保持记录习惯，积累更多工作数据',
+      '考虑设置明确的项目标签，提高工作分析的精度'
+    ]
+  };
+}
+
+/**
+ * 解析AI生成的周报内容并结构化（旧版本，保留兼容性）
  */
 function parseWeeklyReport(aiReport: string, weeklyData: WeeklyData): {
   summary: string;

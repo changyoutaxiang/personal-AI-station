@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from 'react';
 
 export type SelectableItem = {
   id: number;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 export interface UseMultiSelectOptions {

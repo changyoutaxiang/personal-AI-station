@@ -1,8 +1,30 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import PromptTemplateManager from '@/components/agent/PromptTemplateManager';
+// 移除局部返回按钮，统一使用全局按钮
+
+
+interface PromptTemplate {
+  id: string;
+  title: string;
+  description: string;
+  content: string;
+  tags: string[];
+  category: string;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function PromptTemplatesPage() {
+  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
+  const [filteredTemplates, setFilteredTemplates] = useState<PromptTemplate[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null);
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--background)' }}>
       <div className="container mx-auto px-4 py-8 max-w-6xl">

@@ -127,8 +127,8 @@ export interface CognitiveProfile {
   };
   
   confidence_score: number;  // 画像准确性 (0-1)
-  last_updated: string;
   created_at: string;
+  last_updated: string;
 }
 
 // 主题兴趣

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { ServerDbController } from '@/lib/server-db-controller';
 import { debug } from '@/lib/debug';
 import { 
@@ -6,11 +6,12 @@ import {
   createErrorResponse, 
   createSuccessResponse, 
   sanitizePromptContent, 
-  isContentSafe,
-  withApiErrorHandling 
+  isContentSafe
+  // withApiErrorHandling // TODO: 未使用，暂时注释
 } from '@/lib/api-validation';
 import { ValidationRules } from '@/lib/validation';
 import { simpleChatCompletion } from '@/lib/openrouter-client';
+import { getOpenRouterApiKey } from '@/lib/db';
 
 // 聊天请求接口
 interface ChatRequest {
@@ -136,17 +137,22 @@ export async function POST(request: NextRequest) {
     // 添加用户新消息
     messages.push({ role: 'user', content: cleanMessage });
 
+    // 获取API Key（优先数据库配置，其次环境变量）
+    const dbApiKey = getOpenRouterApiKey();
+    
     // 调用AI（使用新的安全客户端）
     debug.info('正在调用AI:', { 
       model, 
       messages_count: messages.length,
-      conversation_id: conversationId
+      conversation_id: conversationId,
+      api_key_source: dbApiKey ? 'database' : 'environment'
     });
     
     const aiResponse = await simpleChatCompletion(
       model,
       messages,
       {
+        apiKey: dbApiKey || undefined, // 传入数据库API Key，如果没有则fallback到环境变量
         timeout: 30000, // 30秒超时
         maxRetries: 2, // 最多重试2次
         temperature: 0.7,
@@ -177,14 +183,12 @@ export async function POST(request: NextRequest) {
       conversationId,
       userMessage: {
         id: userMessage.id,
-        content: userMessage.content,
-        created_at: userMessage.created_at
+        content: userMessage.content
       },
       assistant: {
         id: assistantMessage.id,
         content: aiResponse.content,
-        tokensUsed: aiResponse.tokensUsed,
-        created_at: assistantMessage.created_at
+        tokensUsed: aiResponse.tokensUsed
       }
     });
   } catch (error) {

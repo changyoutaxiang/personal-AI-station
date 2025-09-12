@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { AVAILABLE_MODELS } from '@/lib/models';
-import type { ModelOption } from '@/lib/models';
+import { getAllAvailableModels } from '@/lib/ai-providers';
 
 interface ModelSelectorProps {
   selectedModel: string;
@@ -14,8 +13,11 @@ export default function ModelSelector({ selectedModel, onModelChange, disabled =
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // 获取所有可用模型
+  const availableModels = getAllAvailableModels();
+  
   // 获取当前选中模型的信息
-  const selectedModelInfo = AVAILABLE_MODELS.find(model => model.value === selectedModel) || AVAILABLE_MODELS[0];
+  const selectedModelInfo = availableModels.find(model => model.value === selectedModel) || availableModels[0];
 
   // 点击外部关闭下拉菜单
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function ModelSelector({ selectedModel, onModelChange, disabled =
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleModelSelect = (model: ModelOption) => {
+  const handleModelSelect = (model: { value: string; label: string; provider: string }) => {
     onModelChange(model.value);
     setIsOpen(false);
   };
@@ -48,11 +50,11 @@ export default function ModelSelector({ selectedModel, onModelChange, disabled =
           color: 'var(--text-primary)'
         }}
       >
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="text-xs font-medium whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
             模型:
           </span>
-          <span>{selectedModelInfo.label}</span>
+          <span className="truncate">{selectedModelInfo.label}</span>
         </div>
         <svg
           className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -74,7 +76,7 @@ export default function ModelSelector({ selectedModel, onModelChange, disabled =
             backdropFilter: 'blur(10px)'
           }}
         >
-          {AVAILABLE_MODELS.map((model) => (
+          {availableModels.map((model) => (
             <button
               key={model.value}
               onClick={() => handleModelSelect(model)}
@@ -98,8 +100,11 @@ export default function ModelSelector({ selectedModel, onModelChange, disabled =
                   </svg>
                 )}
               </div>
-              <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {model.value}
+              <div className="text-xs mt-1 flex items-center justify-between" style={{ color: 'var(--text-secondary)' }}>
+                <span className="truncate mr-2">{model.value}</span>
+                <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded flex-shrink-0">
+                  {model.provider}
+                </span>
               </div>
             </button>
           ))}

@@ -1,3 +1,19 @@
+# Backups
+.backups/
+backup/
+*.backup
+*.emergency_backup.*
+
+# Logs
+logs/
+*.log
+# SQLite DB
+/db/*.sqlite
+/data/*.db
+*.db
+*.sqlite
+*.sqlite3
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies

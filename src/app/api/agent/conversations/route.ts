@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     // 查询会话列表
     const conversations = listConversations({
       keyword,
-      folderId, // 添加文件夹过滤
+      folderId: folderId, // 修复：直接传递folderId，包括null值
       limit,
       offset
     });

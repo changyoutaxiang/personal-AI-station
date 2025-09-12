@@ -4,34 +4,20 @@ import { useState } from 'react';
 import { LoadingSpinner } from './LoadingStates';
 import { ConversationListSkeleton } from './SkeletonLoaders';
 import type { Conversation } from './types';
-
-// 文件夹接口定义（临时，直到从types导入）
-interface ConversationFolder {
-  id: number;
-  name: string;
-  description?: string;
-  color: string;
-  icon: string;
-  position: number;
-  parent_id?: number;
-  created_at: string;
-  updated_at: string;
-  children?: ConversationFolder[];
-}
+import type { ConversationFolder } from '@/lib/db';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface ChatSidebarProps {
   conversations: Conversation[];
   currentConversation: Conversation | null;
   searchKeyword: string;
   conversationsLoading: boolean;
-  sidebarCollapsed: boolean;
   folders?: ConversationFolder[];
   selectedFolderId?: number | null;
   onSelectConversation: (conversation: Conversation) => void;
   onCreateNewConversation: () => void;
   onDeleteConversation: (conversationId: number) => void;
   onSearchChange: (keyword: string) => void;
-  onToggleCollapsed: () => void;
   // 文件夹相关回调
   onCreateFolder?: (name: string, description?: string, color?: string) => void;
   onDeleteFolder?: (folderId: number) => void;
@@ -45,14 +31,12 @@ export default function ChatSidebar({
   currentConversation,
   searchKeyword,
   conversationsLoading,
-  sidebarCollapsed,
   folders,
   selectedFolderId,
   onSelectConversation,
   onCreateNewConversation,
   onDeleteConversation,
   onSearchChange,
-  onToggleCollapsed,
   onCreateFolder,
   onDeleteFolder,
   onRenameFolder,
@@ -71,60 +55,105 @@ export default function ChatSidebar({
   const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
   const [renameFolderName, setRenameFolderName] = useState('');
   
+
+
+
+
+
+
+  // 删除确认对话框状态
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
+  const [showDeleteFolderConfirm, setShowDeleteFolderConfirm] = useState(false);
+  const [folderToDelete, setFolderToDelete] = useState<ConversationFolder | null>(null);
+  
   // 拖拽状态
-  const [draggingConversationId, setDraggingConversationId] = useState<number | null>(null);
-  const [dragOverFolderId, setDragOverFolderId] = useState<number | null>(null);
-  
-  // 拖拽处理函数
-  const handleDragStart = (e: React.DragEvent, conversationId: number) => {
-    setDraggingConversationId(conversationId);
-    e.dataTransfer.setData('text/plain', conversationId.toString());
+  const [draggedConversation, setDraggedConversation] = useState<Conversation | null>(null);
+  const [dragOverFolder, setDragOverFolder] = useState<number | null>(null);
+
+  // 确认删除会话
+  const confirmDelete = (conversation: Conversation) => {
+    setConversationToDelete(conversation);
+    setShowDeleteConfirm(true);
+  };
+
+  // 处理删除确认
+  const handleDeleteConfirm = () => {
+    if (conversationToDelete) {
+      onDeleteConversation(conversationToDelete.id);
+      setShowDeleteConfirm(false);
+      setConversationToDelete(null);
+    }
+  };
+
+  // 取消删除
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+    setConversationToDelete(null);
+  };
+
+  // 确认删除文件夹
+  const confirmDeleteFolder = (folder: ConversationFolder) => {
+    setFolderToDelete(folder);
+    setShowDeleteFolderConfirm(true);
+  };
+
+  // 处理文件夹删除确认
+  const handleDeleteFolderConfirm = () => {
+    if (folderToDelete) {
+      onDeleteFolder?.(folderToDelete.id);
+      setShowDeleteFolderConfirm(false);
+      setFolderToDelete(null);
+    }
+  };
+
+  // 取消删除文件夹
+  const handleDeleteFolderCancel = () => {
+    setShowDeleteFolderConfirm(false);
+    setFolderToDelete(null);
+  };
+
+  // 拖拽事件处理
+  const handleDragStart = (e: React.DragEvent, conversation: Conversation) => {
+    setDraggedConversation(conversation);
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', conversation.id.toString());
   };
-  
+
   const handleDragEnd = () => {
-    setDraggingConversationId(null);
-    setDragOverFolderId(null);
+    setDraggedConversation(null);
+    setDragOverFolder(null);
   };
-  
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
-  
-  const handleDragEnter = (e: React.DragEvent, folderId: number | null) => {
+
+  const handleDragEnterFolder = (folderId: number) => {
+    setDragOverFolder(folderId);
+  };
+
+  const handleDragLeaveFolder = () => {
+    setDragOverFolder(null);
+  };
+
+  const handleDropOnFolder = (e: React.DragEvent, folderId: number) => {
     e.preventDefault();
-    setDragOverFolderId(folderId);
-  };
-  
-  const handleDragLeave = (e: React.DragEvent) => {
-    // 只有当离开整个文件夹区域时才清除高亮
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setDragOverFolderId(null);
+    if (draggedConversation && onMoveConversationToFolder) {
+      onMoveConversationToFolder(draggedConversation.id, folderId);
     }
+    setDraggedConversation(null);
+    setDragOverFolder(null);
   };
-  
-  const handleDrop = (e: React.DragEvent, folderId: number | null) => {
+
+  const handleDropOnAllConversations = (e: React.DragEvent) => {
     e.preventDefault();
-    const conversationId = parseInt(e.dataTransfer.getData('text/plain'), 10);
-    
-    if (conversationId && draggingConversationId === conversationId) {
-      onMoveConversationToFolder?.(conversationId, folderId);
+    if (draggedConversation && onMoveConversationToFolder) {
+      onMoveConversationToFolder(draggedConversation.id, null);
     }
-    
-    setDraggingConversationId(null);
-    setDragOverFolderId(null);
-  };
-
-
-
-
-
-  // 确认删除会话
-  const confirmDelete = (conversation: Conversation) => {
-    if (window.confirm(`确定要删除对话"${conversation.title}"吗？此操作不可撤销。`)) {
-      onDeleteConversation(conversation.id);
-    }
+    setDraggedConversation(null);
+    setDragOverFolder(null);
   };
   
   // 文件夹管理函数
@@ -196,78 +225,20 @@ export default function ChatSidebar({
   ];
 
   return (
-    <div className={`${sidebarCollapsed ? 'w-16' : 'w-80 md:w-80 sm:w-64'} transition-all duration-300 md:relative fixed md:translate-x-0 z-20 h-full rounded-xl`} 
-         style={{ background: 'transparent' }}>
+    <>
+      <div className="w-80 h-full rounded-xl" 
+           style={{ background: 'transparent' }}>
       
       {/* 侧边栏头部 */}
       <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--card-border)' }}>
-        <div className="flex items-center justify-between">
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => window.location.href = '/'}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 active:scale-95 group"
-                style={{
-                  borderColor: 'var(--card-border)',
-                  backgroundColor: 'var(--card-glass)',
-                  color: 'var(--text-secondary)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-                }}
-                title="返回首页"
-              >
-                <svg 
-                  width="16" 
-                  height="16" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                  className=""
-                >
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                  <polyline points="9,22 9,12 15,12 15,22"/>
-                </svg>
-                <span className="text-sm font-medium">首页</span>
-              </button>
-              <h1 className="text-xl font-bold ml-2" style={{ color: 'var(--text-primary)' }}>
-                智能体
-              </h1>
-            </div>
-          )}
-          <button
-            onClick={onToggleCollapsed}
-            className="p-3 rounded-xl border group ml-auto"
-            style={{
-              borderColor: 'var(--card-border)',
-              backgroundColor: 'var(--card-glass)',
-              color: 'var(--text-secondary)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-            }}
-            title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
-          >
-            <svg 
-              className={`w-4 h-4 ${
-                sidebarCollapsed ? 'rotate-180' : ''
-              }`} 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M15 19l-7-7 7-7" 
-              />
-            </svg>
-          </button>
+        <div className="flex-1 flex justify-center">
+          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            智能体
+          </h1>
         </div>
       </div>
 
-      {!sidebarCollapsed && (
-        <>
+      <>
           {/* 新对话按钮 */}
           <div className="px-4 pt-3 pb-4">
             <button
@@ -304,17 +275,15 @@ export default function ChatSidebar({
             <div className="flex items-center justify-between mb-2">
               <h3 
                 className={`text-sm font-medium cursor-pointer rounded p-1 transition-colors ${
-                  dragOverFolderId === null && draggingConversationId
-                    ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400'
-                    : ''
+                  dragOverFolder === -1 ? 'bg-blue-100 border-2 border-blue-300 border-dashed' : ''
                 }`}
                 style={{ color: 'var(--text-secondary)' }}
-                onDragOver={handleDragOver}
-                onDragEnter={(e) => handleDragEnter(e, null)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, null)}
                 onClick={() => onSelectFolder?.(null)}
-                title="全部对话 - 拖拽到此处移出文件夹"
+                onDragOver={handleDragOver}
+                onDragEnter={() => setDragOverFolder(-1)}
+                onDragLeave={handleDragLeaveFolder}
+                onDrop={handleDropOnAllConversations}
+                title="全部对话 - 拖拽对话到这里移出文件夹"
               >
                 📁 文件夹 {selectedFolderId === null ? '(当前)' : ''}
               </h3>
@@ -467,15 +436,16 @@ export default function ChatSidebar({
                       /* 正常显示模式 */
                       <div
                         onClick={() => onSelectFolder?.(folder.id)}
-                        onDragOver={handleDragOver}
-                        onDragEnter={(e) => handleDragEnter(e, folder.id)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDrop(e, folder.id)}
                         className={`flex items-center gap-2 p-2 cursor-pointer rounded-lg transition-colors ${
-                          dragOverFolderId === folder.id && draggingConversationId
-                            ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400'
+                          dragOverFolder === folder.id 
+                            ? 'bg-blue-100 border-2 border-blue-300 border-dashed' 
                             : ''
                         }`}
+                        onDragOver={handleDragOver}
+                        onDragEnter={() => handleDragEnterFolder(folder.id)}
+                        onDragLeave={handleDragLeaveFolder}
+                        onDrop={(e) => handleDropOnFolder(e, folder.id)}
+                        title={`${folder.name} - 拖拽对话到这里移入文件夹`}
                       >
                         <div 
                           className="w-3 h-3 rounded-full flex-shrink-0" 
@@ -506,9 +476,7 @@ export default function ChatSidebar({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (window.confirm(`确定要删除文件夹“${folder.name}”吗？`)) {
-                                onDeleteFolder?.(folder.id);
-                              }
+                              confirmDeleteFolder(folder);
                             }}
                             className="p-1 rounded transition-colors"
                             title="删除文件夹"
@@ -546,27 +514,28 @@ export default function ChatSidebar({
               conversations.map(conversation => (
                 <div
                   key={conversation.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, conversation.id)}
-                  onDragEnd={handleDragEnd}
-                  className={`group relative border-l-4 ${
+                  className={`group relative border-l-4 cursor-pointer ${
                     currentConversation?.id === conversation.id
                       ? 'border-l-[var(--flow-primary)] bg-[var(--flow-primary)]/10'
                       : 'border-l-transparent'
-                  } ${
-                    draggingConversationId === conversation.id ? 'opacity-50 cursor-move' : 'cursor-pointer'
                   }`}
                 >
                   <div
-                    className="w-full p-3 text-left cursor-pointer"
+                    className={`w-full p-3 text-left cursor-pointer transition-opacity ${
+                      draggedConversation?.id === conversation.id ? 'opacity-50' : ''
+                    }`}
                     onClick={() => onSelectConversation(conversation)}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, conversation)}
+                    onDragEnd={handleDragEnd}
+                    title="拖拽此对话到文件夹中"
                   >
                     <>
                       <div className="font-medium truncate mb-1" style={{ color: 'var(--text-primary)' }}>
                         {conversation.title}
                       </div>
                       <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
-                        {new Date(conversation.updated_at).toLocaleDateString()}
+                        对话 #{conversation.id}
                       </div>
                       {conversation.tags && conversation.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
@@ -609,7 +578,31 @@ export default function ChatSidebar({
             )}
           </div>
         </>
-      )}
     </div>
+
+    {/* 删除确认对话框 */}
+    <ConfirmDialog
+      open={showDeleteConfirm && !!conversationToDelete}
+      title="确认删除"
+      description={conversationToDelete ? `确定要删除对话"${conversationToDelete.title}"吗？此操作不可撤销。` : '确定要删除该对话吗？此操作不可撤销。'}
+      cancelText="取消"
+      confirmText="确认删除"
+      onCancel={handleDeleteCancel}
+      onConfirm={handleDeleteConfirm}
+      danger
+    />
+
+    {/* 文件夹删除确认对话框 */}
+    <ConfirmDialog
+      open={showDeleteFolderConfirm && !!folderToDelete}
+      title="确认删除文件夹"
+      description={folderToDelete ? `确定要删除文件夹"${folderToDelete.name}"吗？此操作不可撤销。` : '确定要删除该文件夹吗？此操作不可撤销。'}
+      cancelText="取消"
+      confirmText="确认删除"
+      onCancel={handleDeleteFolderCancel}
+      onConfirm={handleDeleteFolderConfirm}
+      danger
+    />
+  </>
   );
 }

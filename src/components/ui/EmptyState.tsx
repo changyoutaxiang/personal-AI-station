@@ -4,7 +4,7 @@ import React from 'react';
 import { Animated } from '../animations';
 
 export interface EmptyStateProps {
-  type: 'entries' | 'search' | 'behavior' | 'ai-analysis' | 'todos' | 'projects' | 'insights' | 'data-export' | 'weekly-report' | 'batch-operations' | 'generic' | 'loading' | 'error' | 'network-error' | 'database-error' | 'permission-denied' | 'partial-data';
+  type: 'entries' | 'search' | 'behavior' | 'ai-analysis' | 'todos' | 'insights' | 'data-export' | 'weekly-report' | 'batch-operations' | 'generic' | 'loading' | 'error' | 'network-error' | 'database-error' | 'permission-denied' | 'partial-data';
   title?: string;
   description?: string;
   action?: {
@@ -65,14 +65,7 @@ const emptyStateConfig = {
     animation: 'shake',
     gradient: 'from-green-400 to-emerald-400'
   },
-  projects: {
-    icon: '📁',
-    title: '还没有项目',
-    description: '创建您的第一个项目来组织工作',
-    color: 'orange',
-    animation: 'spin',
-    gradient: 'from-orange-400 to-red-400'
-  },
+
   insights: {
     icon: '💡',
     title: '暂无洞察',
@@ -99,8 +92,8 @@ const emptyStateConfig = {
   },
   'batch-operations': {
     icon: '🎯',
-    title: '没有可操作的项目',
-    description: '选择一些项目来进行批量操作',
+    title: '没有可操作的条目',
+    description: '选择一些条目来进行批量操作',
     color: 'amber',
     animation: 'pulse',
     gradient: 'from-amber-400 to-yellow-400'

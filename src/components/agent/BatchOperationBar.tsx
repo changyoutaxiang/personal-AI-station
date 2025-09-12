@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { InlineLoading } from './LoadingStates';
 import type { Message, Conversation } from './types';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 export type BatchOperationType = 'delete' | 'archive';
 export type BatchOperationTarget = 'messages' | 'conversations';
@@ -93,7 +94,7 @@ export default function BatchOperationBar({
       case 'conversations':
         return selectedCount === 1 ? '个会话' : '个会话';
       default:
-        return '个项目';
+        return '个条目';
     }
   };
 
@@ -211,48 +212,7 @@ export default function BatchOperationBar({
                 )}
               </button>
 
-              {/* 删除确认弹窗 */}
-              {showDeleteConfirm && (
-                <div 
-                  className="absolute bottom-full right-0 mb-2 p-4 rounded-lg border shadow-xl max-w-sm"
-                  style={{
-                    backgroundColor: 'var(--card-glass)',
-                    borderColor: 'var(--card-border)',
-                    backdropFilter: 'blur(10px)'
-                  }}
-                >
-                  <div className="flex items-start gap-3 mb-3">
-                    <AlertTriangle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                        确认删除
-                      </h4>
-                      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        您即将删除 {selectedCount} {getTargetText()}。此操作无法撤销。
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="px-3 py-1.5 text-sm rounded border hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                      style={{ 
-                        borderColor: 'var(--card-border)',
-                        color: 'var(--text-secondary)' 
-                      }}
-                    >
-                      取消
-                    </button>
-                    <button
-                      onClick={handleBatchDelete}
-                      disabled={operationLoading === 'delete'}
-                      className="px-3 py-1.5 text-sm rounded bg-red-500 hover:bg-red-600 text-white disabled:opacity-50 transition-colors"
-                    >
-                      {operationLoading === 'delete' ? '删除中...' : '确认删除'}
-                    </button>
-                  </div>
-                </div>
-              )}
+
             </div>
 
             {/* 关闭按钮 */}
@@ -267,14 +227,53 @@ export default function BatchOperationBar({
         </div>
       </div>
 
-      {/* 点击外部区域关闭下拉菜单 */}
+      {/* 删除确认对话框 */}
       {showDeleteConfirm && (
-        <div 
-          className="fixed inset-0 -z-10"
-          onClick={() => {
-            setShowDeleteConfirm(false);
-          }}
-        />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div 
+            className="p-6 rounded-lg border shadow-xl max-w-md w-full"
+            style={{
+              backgroundColor: 'var(--card-glass)',
+              borderColor: 'var(--card-border)',
+              backdropFilter: 'blur(10px)'
+            }}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <AlertTriangle size={24} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                  确认删除
+                </h3>
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  您即将删除 {selectedCount} {getTargetText()}。此操作无法撤销。
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={operationLoading === 'delete'}
+                className="px-4 py-2 text-sm rounded border hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                style={{ 
+                  borderColor: 'var(--card-border)',
+                  color: 'var(--text-secondary)' 
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                disabled={operationLoading === 'delete'}
+                className="px-4 py-2 text-sm rounded bg-red-500 hover:bg-red-600 text-white disabled:opacity-50 transition-colors flex items-center gap-2"
+              >
+                {operationLoading === 'delete' && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                )}
+                {operationLoading === 'delete' ? '删除中...' : '确认删除'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -12,6 +12,7 @@ interface ChatInputProps {
   selectedModel: string;
   selectedTemplate: PromptTemplate | null;
   templates: PromptTemplate[];
+  initialMessage?: string;
   onSendMessage: (message: string) => void;
   onModelChange: (model: string) => void;
   onTemplateChange: (template: PromptTemplate | null) => void;
@@ -22,12 +23,20 @@ export default function ChatInput({
   selectedModel,
   selectedTemplate,
   templates,
+  initialMessage,
   onSendMessage, 
   onModelChange,
   onTemplateChange 
 }: ChatInputProps) {
   const [inputMessage, setInputMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 处理初始消息
+  useEffect(() => {
+    if (initialMessage) {
+      setInputMessage(initialMessage);
+    }
+  }, [initialMessage]);
 
   // 自动调整文本框高度
   const adjustTextareaHeight = () => {
@@ -101,7 +110,7 @@ export default function ChatInput({
     >
       {/* 模型和模板选择器 - 移到输入框上方 */}
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-48">
+        <div className="w-64">
           <ModelSelector
             selectedModel={selectedModel}
             onModelChange={onModelChange}

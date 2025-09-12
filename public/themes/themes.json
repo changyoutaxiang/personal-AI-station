@@ -1,0 +1,35 @@
+{
+  "themes": [
+    {
+      "id": "space",
+      "name": "星空",
+      "background": "/greg-rakozy-oMpAz-DN-9I-unsplash.jpg",
+      "description": "深邃的星空背景"
+    },
+    {
+      "id": "universe",
+      "name": "宇宙",
+      "background": "/themes/backgrounds/1.jpg",
+      "description": "神秘的宇宙背景"
+    },
+    {
+      "id": "Mars",
+      "name": "火星",
+      "background": "/themes/backgrounds/2.jpg",
+      "description": "火星的神秘景色"
+    },
+    {
+      "id": "coding",
+      "name": "编码",
+      "background": "/themes/backgrounds/3.jpg",
+      "description": "编码的神秘景色"
+    },
+    {
+      "id": "ai",
+      "name": "AI 矩阵",
+      "background": "/themes/backgrounds/4.jpg",
+      "description": "AI 矩阵的神秘景色"
+    }
+  ],
+  "defaultTheme": "space"
+}

@@ -1,6 +1,6 @@
 /**
- * 批量操作组件 - 用于记录和待办事项的批量操作
- * 支持多选、批量删除、批量状态更新等功能
+ * 批量操作组件 - 用于记录的批量操作
+ * 支持多选、批量删除、批量更新等功能
  */
 'use client';
 
@@ -14,7 +14,7 @@ interface BatchOperationsProps {
   onClearSelection: () => void;
   onBatchDelete: (ids: number[]) => Promise<void>;
   onBatchUpdate?: (ids: number[], updates: Record<string, unknown>) => Promise<void>;
-  itemType: 'entries' | 'todos';
+  itemType?: 'entries';
 }
 
 export default function BatchOperations({
@@ -98,32 +98,6 @@ export default function BatchOperations({
 
           {/* 批量操作按钮 */}
           <div className="flex items-center gap-2">
-            {/* 待办事项特有的状态更新 */}
-            {itemType === 'todos' && onBatchUpdate && (
-              <>
-                <button
-                  onClick={() => handleBatchStatusUpdate('pending')}
-                  disabled={isLoading}
-                  className="px-3 py-1.5 text-sm bg-neutral-100 text-neutral-700 rounded-md hover:bg-neutral-200 transition-colors disabled:opacity-50"
-                >
-                  标记待处理
-                </button>
-                <button
-                  onClick={() => handleBatchStatusUpdate('in_progress')}
-                  disabled={isLoading}
-                  className="px-3 py-1.5 text-sm bg-warning-100 text-warning-700 rounded-md hover:bg-warning-200 transition-colors disabled:opacity-50"
-                >
-                  标记进行中
-                </button>
-                <button
-                  onClick={() => handleBatchStatusUpdate('completed')}
-                  disabled={isLoading}
-                  className="px-3 py-1.5 text-sm bg-success-100 text-success-700 rounded-md hover:bg-success-200 transition-colors disabled:opacity-50"
-                >
-                  标记完成
-                </button>
-              </>
-            )}
 
             {/* 批量删除 */}
             <button
@@ -154,7 +128,7 @@ export default function BatchOperations({
               确认删除
             </h3>
             <p className="text-neutral-600 mb-4">
-              确定要删除选中的 {selectedCount} 个{itemType === 'entries' ? '记录' : '待办事项'}吗？此操作无法撤销。
+              确定要删除选中的 {selectedCount} 个记录吗？此操作无法撤销。
             </p>
             
             <div className="flex justify-end gap-3">

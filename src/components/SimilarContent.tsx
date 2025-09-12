@@ -12,7 +12,6 @@ interface SimilarEntry {
   attribute_tag?: string;
   urgency_tag?: string;
   daily_report_tag?: string;
-  created_at: string;
   ai_score?: number;
   ai_reason?: string;
   basic_score?: number;
@@ -85,15 +84,22 @@ export default function SimilarContent({ content, entryId, onMergeComplete }: Si
     }, 800); // 800ms防抖延迟
   }, [checkSimilarContent]);
 
-  // 当内容变化时自动查找相似内容（加入防抖机制）
-  useEffect(() => {
-    if (content && content.trim().length > 10) {
-      debouncedCheckSimilarContent(content);
+  // 手动触发相似内容查找的函数
+  const triggerSimilarityCheck = useCallback(() => {
+    if (content && content.trim().length >= 10) {
+      checkSimilarContent(content);
     } else {
       setSimilarEntries([]);
       setIsVisible(false);
     }
-  }, [content, debouncedCheckSimilarContent]);
+  }, [content, checkSimilarContent]);
+
+  // 暴露手动触发函数给父组件
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).triggerSimilarityCheck = triggerSimilarityCheck;
+    }
+  }, [triggerSimilarityCheck]);
 
   const handleSelectEntry = (entryId: number) => {
     const newSelected = new Set(selectedEntries);
@@ -132,18 +138,39 @@ export default function SimilarContent({ content, entryId, onMergeComplete }: Si
 
     setIsMerging(true);
     try {
+      debug.log('🔗 Starting merge process...', {
+        entryId,
+        selectedEntries: Array.from(selectedEntries),
+        mergeContentLength: mergeContent.length
+      });
+
       const result = await mergeEntriesAction(
         entryId, // 可能为 undefined（新记录），也可能有值（编辑已有记录）
         Array.from(selectedEntries),
         mergeContent
       );
       
+      debug.log('🔗 Merge action result:', result);
+      
       if (result.success) {
+        debug.log('✅ Merge completed successfully');
+        
+        // 关闭对话框和相似内容显示
         setShowMergeDialog(false);
         setIsVisible(false);
+        
+        // 清空选择状态
+        setSelectedEntries(new Set());
+        
+        // 通知合并完成
         onMergeComplete?.();
-        debug.log('✅ Merge completed successfully');
+        
+        // 延迟一小段时间确保状态更新完成
+        setTimeout(() => {
+          debug.log('🔗 Merge cleanup completed');
+        }, 100);
       } else {
+        debug.error('❌ Merge failed:', result.error);
         alert('合并失败：' + result.error);
       }
     } catch (error) {
@@ -194,20 +221,6 @@ export default function SimilarContent({ content, entryId, onMergeComplete }: Si
   // 获取标签选项
   const getTagOptions = (tagType: string) => {
     switch (tagType) {
-      case 'attribute_tag':
-        return [
-          { value: '今日跟进', label: '📅 今日跟进' },
-          { value: '本周跟进', label: '📆 本周跟进' },
-          { value: '本月提醒', label: '🗓️ 本月提醒' },
-          { value: '无', label: '➖ 无' }
-        ];
-      case 'urgency_tag':
-        return [
-          { value: 'Jack 交办', label: '🔥 Jack 交办' },
-          { value: '重要承诺', label: '⚡ 重要承诺' },
-          { value: '临近 deadline', label: '⏰ 临近 deadline' },
-          { value: '无', label: '➖ 无' }
-        ];
       case 'daily_report_tag':
         return [
           { value: '核心进展', label: '📈 核心进展' },
@@ -363,7 +376,7 @@ export default function SimilarContent({ content, entryId, onMergeComplete }: Si
                         </span>
                       )}
                       <span className="text-xs text-gray-500">
-                        {formatDate(entry.created_at)}
+                        条目 #{entry.id}
                       </span>
                     </div>
                     
@@ -386,45 +399,7 @@ export default function SimilarContent({ content, entryId, onMergeComplete }: Si
                         </span>
                       )}
                       
-                      {/* 属性标签 */}
-                      {entry.attribute_tag && entry.attribute_tag !== '无' ? (
-                        <span 
-                          className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full cursor-pointer hover:bg-green-200"
-                          onClick={() => startEditTag(entry.id, 'attribute_tag', entry.attribute_tag || '')}
-                        >
-                          {entry.attribute_tag === '今日跟进' && '📅'}
-                          {entry.attribute_tag === '本周跟进' && '📆'}
-                          {entry.attribute_tag === '本月提醒' && '🗓️'}
-                          {' '}{entry.attribute_tag}
-                        </span>
-                      ) : (
-                        <span 
-                          className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full cursor-pointer hover:bg-gray-200"
-                          onClick={() => startEditTag(entry.id, 'attribute_tag', '无')}
-                        >
-                          📅 +
-                        </span>
-                      )}
-                      
-                      {/* 紧急度标签 */}
-                      {entry.urgency_tag && entry.urgency_tag !== '无' ? (
-                        <span 
-                          className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full cursor-pointer hover:bg-red-200"
-                          onClick={() => startEditTag(entry.id, 'urgency_tag', entry.urgency_tag || '')}
-                        >
-                          {entry.urgency_tag === 'Jack 交办' && '🔥'}
-                          {entry.urgency_tag === '重要承诺' && '⚡'}
-                          {entry.urgency_tag === '临近 deadline' && '⏰'}
-                          {' '}{entry.urgency_tag}
-                        </span>
-                      ) : (
-                        <span 
-                          className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full cursor-pointer hover:bg-gray-200"
-                          onClick={() => startEditTag(entry.id, 'urgency_tag', '无')}
-                        >
-                          🔥 +
-                        </span>
-                      )}
+
                       
                       {/* 日报标签 */}
                       {entry.daily_report_tag && entry.daily_report_tag !== '无' ? (
@@ -449,8 +424,6 @@ export default function SimilarContent({ content, entryId, onMergeComplete }: Si
                       
                       {/* 标签编辑器 */}
                       {renderTagEditor(entry.id, 'project_tag')}
-                       {renderTagEditor(entry.id, 'attribute_tag')}
-                       {renderTagEditor(entry.id, 'urgency_tag')}
                        {renderTagEditor(entry.id, 'daily_report_tag')}
                     </div>
                     {entry.ai_reason && !entry.fallback && (
@@ -496,7 +469,7 @@ export default function SimilarContent({ content, entryId, onMergeComplete }: Si
         return showMergeDialog;
       })() && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 pt-16"
           onClick={(e) => {
             // 点击背景关闭对话框，但要防止事件冒泡
             if (e.target === e.currentTarget) {

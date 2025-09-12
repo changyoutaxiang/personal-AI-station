@@ -9,6 +9,7 @@ import BatchOperationBar from './BatchOperationBar';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
 import { toast } from 'react-hot-toast';
 import type { Message, Conversation } from './types';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface ChatMessagesProps {
   messages: Message[];
@@ -71,12 +72,29 @@ export default function ChatMessages({
     }
   };
 
+  // 删除确认对话框状态
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<{id: number, content: string} | null>(null);
+
   // 确认删除消息
   const confirmDeleteMessage = (messageId: number, content: string) => {
-    const preview = content.length > 50 ? content.substring(0, 50) + '...' : content;
-    if (window.confirm(`确定要删除这条消息吗？\n\n"${preview}"`)) {
-      onDeleteMessage(messageId);
+    setMessageToDelete({id: messageId, content});
+    setShowDeleteConfirm(true);
+  };
+
+  // 处理删除确认
+  const handleDeleteConfirm = () => {
+    if (messageToDelete) {
+      onDeleteMessage(messageToDelete.id);
+      setShowDeleteConfirm(false);
+      setMessageToDelete(null);
     }
+  };
+
+  // 取消删除
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+    setMessageToDelete(null);
   };
 
   // 检查是否可以重新生成（最后一条消息是助手回复）
@@ -290,10 +308,7 @@ export default function ChatMessages({
                            : 'var(--card-border)' 
                        }}>
                     <div className="text-xs opacity-70">
-                      {new Date(message.created_at).toLocaleTimeString('zh-CN', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                      消息 #{message.id}
                       {message.tokens_used && (
                         <span className="ml-2">• {message.tokens_used} tokens</span>
                       )}
@@ -387,6 +402,18 @@ export default function ChatMessages({
           onClose={multiSelect.exitMultiSelectMode}
         />
       )}
+
+      {/* 删除确认对话框 */}
+      <ConfirmDialog
+        open={showDeleteConfirm && !!messageToDelete}
+        title="确认删除"
+        description={messageToDelete ? `确定要删除这条消息吗？"${messageToDelete.content.length > 50 ? messageToDelete.content.substring(0, 50) + '...' : messageToDelete.content}"` : '确定要删除这条消息吗？'}
+        cancelText="取消"
+        confirmText="确认删除"
+        onCancel={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        danger
+      />
     </div>
   );
 }

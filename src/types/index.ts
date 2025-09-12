@@ -7,11 +7,22 @@ export interface Entry {
   urgency_tag?: string;
   daily_report_tag?: string;
   effort_tag?: string;
-  resource_consumption_tag?: string;
   importance_tag?: number;
   sort_order: number;
   created_at: string;
   updated_at: string;
+}
+
+// 创建Entry时的类型，某些字段可以是可选的
+export interface CreateEntry {
+  content: string;
+  project_tag?: string;
+  person_tag?: string;
+  attribute_tag?: string;
+  urgency_tag?: string;
+  daily_report_tag?: string;
+  effort_tag?: string;
+  importance_tag?: number;
 }
 
 export interface ApiResponse<T> {
@@ -81,38 +92,6 @@ export interface CreateKnowledgeDocument {
   priority?: number;
 }
 
-// Todo相关类型定义
-export interface Todo {
-  id: number;
-  title: string;
-  description?: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-  project_tag?: string;
-  weekday?: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-  sort_order: number;
-}
-
-export interface CreateTodo {
-  title: string;
-  description?: string;
-  priority?: 'low' | 'medium' | 'high';
-  project_tag?: string;
-  weekday?: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-}
-
-export interface TodoStats {
-  total: number;
-  completed: number;
-  in_progress: number;
-  pending: number;
-  completion_rate: number;
-  by_priority: {
-    high: number;
-    medium: number;
-    low: number;
-  };
-}
 
 // 搜索相关类型定义
 export interface SearchResult {
@@ -130,11 +109,36 @@ export interface SearchItemResult {
   attribute_tag?: string;
   urgency_tag?: string;
   daily_report_tag?: string;
-  created_at: string;
   relevanceScore: number;
   matchedTerms: string[];
   highlightedContent: string;
 }
+
+// 主页 Tab 枚举/常量，统一命名规范，避免不一致
+export const HomeTabs = {
+  RECORDS: 'records',
+  AI_INSIGHTS: 'ai-insights',
+  KNOWLEDGE: 'knowledge',
+  EXPORT: 'export',
+  CONFIG: 'config',
+} as const;
+export type HomeTab = typeof HomeTabs[keyof typeof HomeTabs];
+
+// AI 洞察内部 Tab
+export const AIInsightsTabs = {
+  ANALYSIS: 'analysis',
+  REPORT: 'report',
+  INSIGHTS: 'insights',
+} as const;
+export type AIInsightsTab = typeof AIInsightsTabs[keyof typeof AIInsightsTabs];
+
+
+// 数据导出内部 Tab（导出/完整性）
+export const DataExportTabs = {
+  EXPORT: 'export',
+  INTEGRITY: 'integrity',
+} as const;
+export type DataExportTab = typeof DataExportTabs[keyof typeof DataExportTabs];
 
 // 导出行为追踪相关类型
 export * from './behavior';

@@ -50,14 +50,21 @@ export default function WeeklyReport({ className = '' }: WeeklyReportProps) {
   return (
     <div className={`bg-white rounded-lg shadow-sm border p-6 ${className}`}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-neutral-800">📊 智能周报</h2>
+        <h2 className="text-xl font-semibold text-neutral-800">📊 综合智能周报</h2>
         <button
           onClick={generateReport}
           disabled={loading}
           className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 disabled:bg-neutral-400 disabled:cursor-not-allowed transition-colors"
         >
-          {loading ? '生成中...' : '生成周报'}
+          {loading ? '生成中...' : '生成综合周报'}
         </button>
+      </div>
+      
+      {/* 数据源说明 */}
+      <div className="mb-4 p-3 bg-blue-50 rounded-md border border-blue-200">
+        <p className="text-sm text-blue-700">
+          🔗 <strong>数据源升级</strong>：现在整合了<span className="font-medium">工作记录</span>和<span className="font-medium">待办任务</span>两大数据源，提供更全面的工作分析
+        </p>
       </div>
 
       {error && (
@@ -69,7 +76,8 @@ export default function WeeklyReport({ className = '' }: WeeklyReportProps) {
       {loading && (
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-          <p className="mt-2 text-neutral-600">AI正在分析你的工作数据...</p>
+          <p className="mt-2 text-neutral-600">AI正在综合分析你的工作记录和任务完成情况...</p>
+          <p className="text-sm text-neutral-500 mt-1">整合记录数据 + 待办任务 + 完成率分析</p>
         </div>
       )}
 
@@ -131,10 +139,10 @@ export default function WeeklyReport({ className = '' }: WeeklyReportProps) {
         <EmptyState 
           type="weekly-report"
           size="medium"
-          title="暂无周报数据"
-          description="继续记录内容，下周就能生成您的专属周报"
+          title="暂无综合报告数据"
+          description="添加工作记录和待办任务，AI将为您生成包含完成率分析的智能工作报告"
           action={{
-            label: '生成周报',
+            label: '生成综合周报',
             onClick: generateReport
           }}
         />

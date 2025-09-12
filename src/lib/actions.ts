@@ -1,7 +1,34 @@
 'use server';
 
-import { createEntry, getAllEntries, getTodayEntries, deleteEntry, searchEntries, getAllKnowledgeDocuments, getKnowledgeStats, exportToJSON, exportToCSV, getExportData, validateDataIntegrity, quickHealthCheck, saveSearchHistory, getSearchHistory, getPopularSearches, toggleFavoriteSearch, getFavoriteSearches, deleteSearchHistory, clearSearchHistory, updateEntriesOrder, updateEntry, createTodo, getAllTodos, updateTodo, updateTodoStatus, deleteTodo, getTodoStats, updateTodosOrder } from './db';
-import { polishText, generateQuestions, findSimilarEntries, analyzeWorkPatterns, generateIntelligentWeeklyReport } from './ai';
+import { createEntry, getAllEntries, getTodayEntries, getThisWeekEntries, deleteEntry, searchEntries, getAllKnowledgeDocuments, getKnowledgeStats, exportToJSON, exportToCSV, getExportData, validateDataIntegrity, quickHealthCheck, saveSearchHistory, getSearchHistory, getPopularSearches, toggleFavoriteSearch, getFavoriteSearches, deleteSearchHistory, clearSearchHistory, updateEntry, getEnhancedWeeklyReportData, listTodos, getAIModelConfig } from './db';
+
+// 日报返回类型定义
+interface DailyReportData {
+  type: 'simple' | 'fallback' | 'ai_enhanced';
+  content?: string;
+  warning?: string;
+  analysis?: {
+    date: string;
+    executive_summary: string;
+    key_achievements: string[];
+    efficiency_analysis?: {
+      completion_rate_assessment?: string;
+      time_allocation?: string;
+      energy_management?: string;
+    };
+    insights: string[];
+    bottlenecks?: string[];
+    tomorrow_optimization?: {
+      priority_focus?: string;
+      method_suggestions?: string;
+      habit_adjustments?: string;
+    };
+    actionable_tips: string[];
+  };
+  rawData?: any;
+}
+import { polishText, generateQuestions, findSimilarEntries, generateIntelligentWeeklyReport, buildEnhancedDailyPrompt } from './ai';
+import { chatCompletion as aiChatCompletion } from './ai-client';
 import { syncKnowledgeBase, searchKnowledgeBase } from './knowledge-manager';
 import { debug } from './debug';
 
@@ -16,10 +43,8 @@ export async function addEntry(formData: FormData) {
   const projectTag = formData.get('project_tag') as string;
 
 
-  const attributeTag = formData.get('attribute_tag') as string;
-  const urgencyTag = formData.get('urgency_tag') as string;
+
   const dailyReportTag = formData.get('daily_report_tag') as string;
-  const resourceTag = formData.get('resource_tag') as string;
 
 
   const effortTag = formData.get('effort_tag') as string;
@@ -27,12 +52,7 @@ export async function addEntry(formData: FormData) {
   debug.log('📝 Entry data:', {
     content: content?.slice(0, 50) + '...',
     projectTag,
-    attributeTag,
-    urgencyTag,
     dailyReportTag,
-    resourceTag,
-
-
     effortTag
   });
 
@@ -46,12 +66,7 @@ export async function addEntry(formData: FormData) {
     const entry = createEntry({
       content: content.trim(),
       project_tag: projectTag || undefined,
-      attribute_tag: attributeTag || '无',
-      urgency_tag: urgencyTag || 'Jack 交办',
       daily_report_tag: dailyReportTag || '核心进展',
-      resource_tag: resourceTag || '自己搞定',
-  
-
       effort_tag: effortTag || '轻松'
     });
 
@@ -83,6 +98,19 @@ export async function fetchTodayEntries() {
   } catch (error) {
     debug.error('获取今日记录失败:', error);
     return { success: false, error: '获取今日记录失败', data: [] };
+  }
+}
+
+// 获取本周记录
+export async function fetchThisWeekEntries() {
+  debug.log('📅 Fetching this week entries...');
+  try {
+    const entries = getThisWeekEntries();
+    debug.log(`✅ Found ${entries.length} this week entries`);
+    return entries;
+  } catch (error) {
+    debug.error('❌ Error fetching this week entries:', error);
+    throw error;
   }
 }
 
@@ -153,10 +181,7 @@ export async function removeEntry(id: number) {
 export async function updateEntryAction(id: number, updates: { 
   content?: string;
   project_tag?: string; 
-  attribute_tag?: string; 
-  urgency_tag?: string; 
   daily_report_tag?: string;
-  resource_consumption_tag?: string;
   effort_tag?: string;
 }) {
   try {
@@ -170,20 +195,142 @@ export async function updateEntryAction(id: number, updates: {
   }
 }
 
-// 生成日报
-export async function generateDailyReport() {
+// 生成智能日报（AI分析版）
+export async function generateDailyReport(): Promise<{ success: boolean; data?: DailyReportData | string; error?: string }> {
   try {
+    // 获取今日数据
     const todayEntries = getTodayEntries();
+    const allTodos = listTodos({ category: 'today' });
     
-    if (todayEntries.length === 0) {
-      return { success: true, data: "今天还没有记录任何内容。" };
+    const today = new Date().toLocaleDateString('zh-CN');
+    
+    // 如果没有任何数据，返回简单消息
+    if (todayEntries.length === 0 && allTodos.length === 0) {
+      return { 
+        success: true, 
+        data: {
+          type: 'simple',
+          content: `# 今日总结 (${today})\n\n今天还没有记录任何内容和任务。开始记录你的工作进展吧！`
+        }
+      };
     }
+    
+    // 分析todos数据
+    const completedTodos = allTodos.filter(todo => todo.completed);
+    const pendingTodos = allTodos.filter(todo => !todo.completed);
+    const completionRate = allTodos.length > 0 ? 
+      Math.round((completedTodos.length / allTodos.length) * 100) : 0;
+    
+    const todosData = {
+      completed: completedTodos,
+      pending: pendingTodos,
+      total: allTodos.length,
+      completionRate
+    };
+    
+    // 如果数据很少，生成简单报告
+    if (todayEntries.length === 0 && allTodos.length < 3) {
+      const projects = [...new Set(todayEntries.filter(e => e.project_tag).map(e => e.project_tag || ''))].filter(p => p);
+      
+      const simpleReport = `# 今日总结 (${today})
 
-    const projects = [...new Set(todayEntries.filter(e => e.project_tag).map(e => e.project_tag || ''))].filter(p => p);
+## 📊 数据概览
+- 工作记录：${todayEntries.length}条
+- 任务完成：${completedTodos.length}/${allTodos.length}个 (${completionRate}%)
+- 涉及项目：${projects.join(', ') || '无'}
 
-    const report = `# 今日总结 (${new Date().toLocaleDateString('zh-CN')})
+## ✅ 已完成任务
+${completedTodos.length > 0 ? 
+  completedTodos.map(todo => `- ${todo.title}`).join('\n') : 
+  '暂无完成任务'}
 
-## 记录概览
+## ⏳ 待办任务  
+${pendingTodos.length > 0 ? 
+  pendingTodos.map(todo => `- ${todo.title}`).join('\n') : 
+  '暂无待办任务'}
+
+## 📝 工作记录
+${todayEntries.length > 0 ? 
+  todayEntries.map((entry, index) => 
+    `${index + 1}. ${entry.content}${entry.project_tag ? ` [${entry.project_tag}]` : ''}`
+  ).join('\n') : 
+  '暂无工作记录'}
+
+---
+*简化版日报 - 数据较少时自动生成*`;
+
+      return { 
+        success: true, 
+        data: {
+          type: 'simple', 
+          content: simpleReport
+        }
+      };
+    }
+    
+    // 生成AI增强提示词
+    const enhancedPrompt = buildEnhancedDailyPrompt(todayEntries, todosData, today);
+    
+    // 调用AI分析
+    debug.log('🤖 开始AI日报分析...');
+    const aiResult = await aiChatCompletion({
+      messages: [{ role: 'user', content: enhancedPrompt }],
+      model: getAIModelConfig('daily_report'),
+      temperature: 0.7,
+      max_tokens: 3000
+    });
+    
+    if (!aiResult.success) {
+      debug.error('❌ AI分析失败:', aiResult.error);
+      throw new Error(aiResult.error || 'AI分析失败');
+    }
+    
+    if (!aiResult.content) {
+      debug.error('❌ AI分析返回空结果');
+      throw new Error('AI分析返回空内容');
+    }
+    
+    // 解析AI结果
+    let aiAnalysis;
+    try {
+      // 清理可能的markdown标记
+      const cleanContent = aiResult.content
+        .replace(/```json\s*/g, '')
+        .replace(/```\s*/g, '')
+        .trim();
+      
+      aiAnalysis = JSON.parse(cleanContent);
+      debug.log('✅ AI日报分析完成');
+    } catch (parseError) {
+      debug.error('❌ AI返回格式解析失败:', parseError);
+      debug.log('Raw AI response:', aiResult.content);
+      throw new Error('AI分析结果格式错误');
+    }
+    
+    return { 
+      success: true, 
+      data: {
+        type: 'ai_enhanced',
+        analysis: aiAnalysis,
+        rawData: {
+          entries: todayEntries,
+          todos: todosData,
+          date: today
+        }
+      }
+    };
+    
+  } catch (error) {
+    debug.error('❌ 生成智能日报失败:', error);
+    
+    // 回退到简单版本
+    try {
+      const todayEntries = getTodayEntries();
+      const projects = [...new Set(todayEntries.filter(e => e.project_tag).map(e => e.project_tag || ''))].filter(p => p);
+      
+      const fallbackReport = `# 今日总结 (${new Date().toLocaleDateString('zh-CN')})
+
+## 记录概览 
 - 总记录数：${todayEntries.length}条
 - 涉及项目：${projects.join(', ') || '无'}
 
@@ -193,13 +340,23 @@ ${todayEntries.map((entry, index) =>
 ).join('\n')}
 
 ---
-*由 你好 唱游 自动生成*
-`;
+*备用版本 - AI分析暂时不可用*`;
 
-    return { success: true, data: report };
-  } catch (error) {
-    debug.error('生成日报失败:', error);
-    return { success: false, error: '生成日报失败' };
+      return { 
+        success: true, 
+        data: {
+          type: 'fallback',
+          content: fallbackReport,
+          warning: 'AI分析暂时不可用，已生成基础版本'
+        }
+      };
+    } catch (fallbackError) {
+      debug.error('❌ 生成备用日报也失败:', fallbackError);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : '生成日报失败' 
+      };
+    }
   }
 }
 
@@ -270,57 +427,73 @@ export async function mergeEntriesAction(targetId: number | undefined, sourceIds
   try {
     debug.log('📝 mergeEntriesAction called:', { targetId, sourceIds, newContentLength: newContent.length });
     
-    // 删除要合并的源记录
-    for (const sourceId of sourceIds) {
-      debug.log('🗑️ Deleting source entry:', sourceId);
-      deleteEntry(sourceId);
+    // 验证输入参数
+    if (!newContent || newContent.trim().length === 0) {
+      return { success: false, error: '合并内容不能为空' };
     }
     
-    // 如果有目标记录（编辑现有记录时），也删除它
-    if (targetId) {
-      debug.log('🗑️ Deleting target entry:', targetId);
-      deleteEntry(targetId);
+    if (sourceIds.length === 0) {
+      return { success: false, error: '请选择要合并的记录' };
     }
     
-    // 创建新的合并记录
-    debug.log('✨ Creating merged entry with content:', newContent.slice(0, 100) + '...');
-    const mergedEntry = createEntry({
-      content: newContent.trim(),
-      project_tag: undefined // 合并后可以重新设置
-    });
-
-    debug.log('✅ Merge completed successfully, new entry ID:', mergedEntry.id);
-    revalidatePath('/');
-    return { success: true, data: mergedEntry };
+    // 验证记录是否存在
+    const allEntries = getAllEntries();
+    const allEntryIds = allEntries.map(e => e.id);
+    
+    // 检查源记录是否存在
+    const missingSourceIds = sourceIds.filter(id => !allEntryIds.includes(id));
+    if (missingSourceIds.length > 0) {
+      debug.error('❌ Source entries not found:', missingSourceIds);
+      return { success: false, error: '部分要合并的记录不存在' };
+    }
+    
+    // 检查目标记录是否存在（如果有）
+    if (targetId && !allEntryIds.includes(targetId)) {
+      debug.error('❌ Target entry not found:', targetId);
+      return { success: false, error: '目标记录不存在' };
+    }
+    
+    // 执行合并操作
+    try {
+      // 删除要合并的源记录
+      for (const sourceId of sourceIds) {
+        debug.log('🗑️ Deleting source entry:', sourceId);
+        deleteEntry(sourceId);
+      }
+      
+      // 如果有目标记录（编辑现有记录时），也删除它
+      if (targetId) {
+        debug.log('🗑️ Deleting target entry:', targetId);
+        deleteEntry(targetId);
+      }
+      
+      // 创建新的合并记录
+      debug.log('✨ Creating merged entry with content:', newContent.slice(0, 100) + '...');
+      const mergedEntry = createEntry({
+        content: newContent.trim(),
+        project_tag: undefined, // 合并后可以重新设置
+        daily_report_tag: '核心进展', // 提供默认值
+        effort_tag: '轻松' // 提供默认值
+      });
+      
+      debug.log('✅ Merge completed successfully, new entry ID:', mergedEntry.id);
+      revalidatePath('/');
+      return { success: true, data: mergedEntry };
+      
+    } catch (deleteError) {
+      debug.error('❌ Database operation failed during merge:', deleteError);
+      return { success: false, error: '数据库操作失败，请重试' };
+    }
+    
   } catch (error) {
     debug.error('❌ 合并记录失败:', error);
-    return { success: false, error: '合并记录失败' };
+    return { success: false, error: error instanceof Error ? error.message : '合并记录失败' };
   }
 }
 
 // =============智能分析功能=============
 
-// 获取工作模式分析
-export async function getWorkAnalysisAction() {
-  try {
-    const allEntries = getAllEntries();
-    const analysis = analyzeWorkPatterns(allEntries);
-    return { success: true, data: analysis };
-  } catch (error) {
-    debug.error('工作模式分析失败:', error);
-    return { 
-      success: false, 
-      error: '工作模式分析失败',
-      data: {
-        peakHours: [],
-        projectDistribution: [],
-        importanceDistribution: [],
-        weeklyPattern: [],
-        productivity_insights: ['分析服务暂时不可用']
-      }
-    };
-  }
-}
+// 工作模式分析功能已删除 - 简化分析页面
 
 // 生成智能周报
 export async function generateIntelligentWeeklyReportAction() {
@@ -330,9 +503,7 @@ export async function generateIntelligentWeeklyReportAction() {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     
-    const weeklyEntries = allEntries.filter(entry => 
-      new Date(entry.created_at) >= oneWeekAgo
-    );
+    const weeklyEntries = allEntries; // 移除时间过滤，返回所有条目
 
     const result = await generateIntelligentWeeklyReport(weeklyEntries);
     return result;
@@ -345,51 +516,7 @@ export async function generateIntelligentWeeklyReportAction() {
   }
 }
 
-// 获取个人效率洞察（综合分析）
-export async function getProductivityInsightsAction() {
-  try {
-    const allEntries = getAllEntries();
-    const workAnalysis = analyzeWorkPatterns(allEntries);
-    
-    // 计算一些额外的洞察指标
-    const today = new Date();
-    const thisWeek = allEntries.filter(entry => {
-      const entryDate = new Date(entry.created_at);
-      const daysDiff = Math.floor((today.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
-      return daysDiff <= 7;
-    });
-    
-    const lastWeek = allEntries.filter(entry => {
-      const entryDate = new Date(entry.created_at);
-      const daysDiff = Math.floor((today.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
-      return daysDiff > 7 && daysDiff <= 14;
-    });
-
-    const weeklyGrowth = lastWeek.length > 0 
-      ? Math.round(((thisWeek.length - lastWeek.length) / lastWeek.length) * 100)
-      : 0;
-
-    const insights = {
-      ...workAnalysis,
-      weeklyStats: {
-        thisWeek: thisWeek.length,
-        lastWeek: lastWeek.length,
-        growth: weeklyGrowth
-      },
-      totalEntries: allEntries.length,
-      averageImportance: 0 // 暂时设为0，因为Entry类型中没有importance_tag
-    };
-
-    return { success: true, data: insights };
-  } catch (error) {
-    debug.error('获取效率洞察失败:', error);
-    return { 
-      success: false, 
-      error: '获取效率洞察失败',
-      data: null
-    };
-  }
-}
+// 个人效率洞察功能已删除 - 简化分析页面
 
 // =============背景知识库管理=============
 
@@ -672,23 +799,7 @@ export async function clearSearchHistoryAction() {
   }
 }
 
-// =============记录排序相关操作=============
 
-// 更新记录排序
-export async function updateEntriesOrderAction(orderUpdates: Array<{ id: number; sort_order: number }>) {
-  try {
-    debug.log('🔄 更新记录排序:', orderUpdates.map(u => ({ id: u.id, order: u.sort_order })));
-    updateEntriesOrder(orderUpdates);
-    revalidatePath('/');
-    return { success: true, data: { updated: orderUpdates.length } };
-  } catch (error) {
-    debug.error('更新记录排序失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '更新记录排序失败' 
-    };
-  }
-}
 
 // =============批量操作相关Server Actions=============
 
@@ -718,9 +829,6 @@ export async function batchDeleteEntriesAction(ids: number[]) {
 // 批量更新记录
 export async function batchUpdateEntriesAction(ids: number[], updates: { 
   project_tag?: string; 
-  attribute_tag?: string; 
-  urgency_tag?: string; 
-  resource_consumption_tag?: string;
 }) {
   try {
     debug.log(`📝 Batch updating ${ids.length} entries:`, { ids, updates });
@@ -743,241 +851,3 @@ export async function batchUpdateEntriesAction(ids: number[], updates: {
   }
 }
 
-// 批量删除Todo
-export async function batchDeleteTodosAction(ids: number[]) {
-  try {
-    debug.log(`🗑️ Batch deleting ${ids.length} todos:`, ids);
-    
-    let deletedCount = 0;
-    for (const id of ids) {
-      const success = deleteTodo(id);
-      if (success) deletedCount++;
-    }
-    
-    revalidatePath('/');
-    return { 
-      success: true, 
-      data: { deletedCount, message: `✅ 已删除 ${deletedCount} 个待办事项` }
-    };
-  } catch (error) {
-    debug.error('批量删除Todo失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '批量删除待办事项失败' 
-    };
-  }
-}
-
-// 批量更新Todo状态
-export async function batchUpdateTodosAction(ids: number[], updates: { 
-  status?: Todo['status'];
-  priority?: Todo['priority'];
-}) {
-  try {
-    debug.log(`📝 Batch updating ${ids.length} todos:`, { ids, updates });
-    
-    let updatedCount = 0;
-    for (const id of ids) {
-      try {
-        updateTodo(id, updates);
-        updatedCount++;
-      } catch (error) {
-        debug.error(`Failed to update todo ${id}:`, error);
-      }
-    }
-    
-    revalidatePath('/');
-    return { 
-      success: true, 
-      data: { updatedCount, message: `✅ 已更新 ${updatedCount} 个待办事项` }
-    };
-  } catch (error) {
-    debug.error('批量更新Todo失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '批量更新待办事项失败' 
-    };
-  }
-}
-
-// ================================
-// Todo相关Server Actions
-// ================================
-
-import type { CreateTodo, Todo } from '@/types/index';
-
-// 创建新的Todo
-export async function createTodoAction(formData: FormData) {
-  debug.log('🔄 createTodoAction called with FormData');
-  
-  const title = formData.get('title') as string;
-  const description = formData.get('description') as string;
-  const priority = formData.get('priority') as 'low' | 'medium' | 'high';
-  const weekday = formData.get('weekday') as string;
-  const project_tag = formData.get('project_tag') as string;
-
-  debug.log('📝 Todo data:', {
-    title: title?.slice(0, 50) + '...',
-    priority,
-    weekday,
-    project_tag
-  });
-
-  if (!title || title.trim().length === 0) {
-    debug.error('❌ Todo title is empty');
-    return { 
-      success: false, 
-      error: '任务标题不能为空' 
-    };
-  }
-
-  try {
-    debug.log('💾 Attempting to create todo...');
-    const todoData: CreateTodo = {
-      title: title.trim(),
-      description: description?.trim() || undefined,
-      priority: priority || 'medium',
-      weekday: (weekday?.trim() && ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(weekday.trim())) ? weekday.trim() as 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday' : undefined,
-      project_tag: project_tag?.trim() || undefined
-    };
-    
-    const todo = createTodo(todoData);
-    debug.log('✅ Todo created successfully:', todo.id);
-    
-    revalidatePath('/');
-    return { 
-      success: true, 
-      data: { todo, message: '✅ 任务创建成功！' }
-    };
-  } catch (error) {
-    debug.error('❌ Failed to create todo:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '创建任务失败' 
-    };
-  }
-}
-
-// 获取所有Todo
-export async function getAllTodosAction() {
-  try {
-    const todos = getAllTodos();
-    return { success: true, data: todos };
-  } catch (error) {
-    debug.error('获取所有Todo失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '获取任务列表失败' 
-    };
-  }
-}
-
-
-
-// 更新Todo状态
-export async function updateTodoStatusAction(id: number, status: Todo['status']) {
-  try {
-    debug.log(`🔄 更新Todo状态: ${id} -> ${status}`);
-    const updatedTodo = updateTodoStatus(id, status);
-    
-    revalidatePath('/');
-    return { 
-      success: true, 
-      data: { todo: updatedTodo, message: '✅ 任务状态更新成功！' }
-    };
-  } catch (error) {
-    debug.error('更新Todo状态失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '更新任务状态失败' 
-    };
-  }
-}
-
-// 更新Todo
-export async function updateTodoAction(id: number, updates: Partial<Todo>) {
-  try {
-    debug.log(`🔄 更新Todo: ${id}`, updates);
-    const updatedTodo = updateTodo(id, updates);
-    
-    revalidatePath('/');
-    return { 
-      success: true, 
-      data: { todo: updatedTodo, message: '✅ 任务更新成功！' }
-    };
-  } catch (error) {
-    debug.error('更新Todo失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '更新任务失败' 
-    };
-  }
-}
-
-// 删除Todo
-export async function deleteTodoAction(id: number) {
-  try {
-    debug.log(`🗑️ 删除Todo: ${id}`);
-    const success = deleteTodo(id);
-    
-    if (success) {
-      revalidatePath('/');
-      return { 
-        success: true, 
-        data: { message: '✅ 任务删除成功！' }
-      };
-    } else {
-      return { 
-        success: false, 
-        error: '任务不存在或删除失败' 
-      };
-    }
-  } catch (error) {
-    debug.error('删除Todo失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '删除任务失败' 
-    };
-  }
-}
-
-// 获取Todo统计信息
-export async function getTodoStatsAction() {
-  try {
-    const stats = getTodoStats();
-    return { success: true, data: stats };
-  } catch (error) {
-    debug.error('获取Todo统计失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '获取统计信息失败' 
-    };
-  }
-}
-
-// 批量更新Todos排序顺序
-export async function updateTodosOrderAction(updates: Array<{ id: number; sort_order: number; }>) {
-  try {
-    debug.log('🔄 updateTodosOrderAction called with updates:', updates);
-    const success = updateTodosOrder(updates);
-    
-    if (success) {
-      revalidatePath('/');
-      return { 
-        success: true, 
-        data: { message: '✅ 排序更新成功！' }
-      };
-    } else {
-      return { 
-        success: false, 
-        error: '排序更新失败' 
-      };
-    }
-  } catch (error) {
-    debug.error('更新Todo排序失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '排序更新失败' 
-    };
-  }
-}

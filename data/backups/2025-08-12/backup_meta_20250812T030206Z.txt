@@ -1,0 +1,10 @@
+backup_timestamp=20250812T030206Z
+backup_date=2025-08-12 03:02:07 UTC
+db_path=data/digital-brain.db
+db_size=1531904
+db_checksum=4116db25f7dcfe7bb12b881735299439fec48072b156b2f0f3960e58f3635bb9
+todos_count=6
+okr_count=0
+entries_count=7
+todos_events_count=12
+okr_events_count=0

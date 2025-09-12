@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { AVAILABLE_MODELS } from '@/lib/models';
+import { getAllAvailableModels } from '@/lib/ai-providers';
 
 interface AIModelConfig {
   id: number;
@@ -51,8 +51,10 @@ const AIModelConfig = () => {
     }
   };
 
+  const availableModels = getAllAvailableModels();
+  
   const getModelLabel = (modelValue: string) => {
-    const model = AVAILABLE_MODELS.find(m => m.value === modelValue);
+    const model = availableModels.find(m => m.value === modelValue);
     return model ? model.label : modelValue;
   };
 
@@ -91,7 +93,7 @@ const AIModelConfig = () => {
                   disabled={updating === config.function_name}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                 >
-                  {AVAILABLE_MODELS.map(model => (
+                  {availableModels.map(model => (
                     <option key={model.value} value={model.value}>
                       {model.label}
                     </option>
@@ -108,7 +110,7 @@ const AIModelConfig = () => {
       <div className="mt-8 p-4 bg-gray-50 rounded-lg">
         <h3 className="font-semibold mb-2">Available Models:</h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
-          {AVAILABLE_MODELS.map(model => (
+          {availableModels.map(model => (
             <div key={model.value} className="flex justify-between">
               <span className="font-medium">{model.label}:</span>
               <code className="text-xs text-gray-600">{model.value}</code>

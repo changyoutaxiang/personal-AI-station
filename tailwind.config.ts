@@ -48,19 +48,6 @@ const config: Config = {
           900: '#14532d'
         },
         
-        warning: {
-          50: '#fffbeb',
-          100: '#fef3c7',
-          200: '#fde68a',
-          300: '#fcd34d',
-          400: '#fbbf24',
-          500: '#f59e0b', // 警告色
-          600: '#d97706',
-          700: '#b45309',
-          800: '#92400e',
-          900: '#78350f'
-        },
-        
         error: {
           50: '#fef2f2',
           100: '#fee2e2',
@@ -101,6 +88,7 @@ const config: Config = {
         'slide-up': 'slideUp 0.4s ease-out',
         'scale-in': 'scaleIn 0.2s ease-out',
         'pulse-slow': 'pulse-slow 3s ease-in-out infinite',
+        'spin-slow': 'spin 3s linear infinite',
         
         // 保留简化的装饰动画（品牌特色）
         'float': 'float 3s ease-in-out infinite',
@@ -162,4 +150,7 @@ const config: Config = {
   },
   plugins: [],
 };
+
+
+
 export default config;

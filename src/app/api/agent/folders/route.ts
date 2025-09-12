@@ -89,7 +89,7 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    const updates: any = {};
+    const updates: Record<string, unknown> = {};
     if (name !== undefined) updates.name = name.trim();
     if (description !== undefined) updates.description = description?.trim();
     if (color !== undefined) updates.color = color;

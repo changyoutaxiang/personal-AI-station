@@ -372,8 +372,8 @@ export async function generateUserProfile(): Promise<CognitiveProfile | null> {
       cognitive_load: cognitiveLoad
     },
     confidence_score: Math.min(1, events.length / 100), // 基于数据量
-    last_updated: new Date().toISOString(),
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    last_updated: new Date().toISOString()
   };
 
   return profile;
@@ -385,7 +385,7 @@ export async function generateUserProfile(): Promise<CognitiveProfile | null> {
 export function saveUserProfile(profile: CognitiveProfile): void {
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO cognitive_profiles 
-    (user_id, profile_data, confidence_score, last_updated, created_at)
+    (user_id, profile_data, confidence_score, created_at, last_updated)
     VALUES (?, ?, ?, ?, ?)
   `);
 
@@ -393,8 +393,8 @@ export function saveUserProfile(profile: CognitiveProfile): void {
     profile.user_id,
     JSON.stringify(profile.profile_data),
     profile.confidence_score,
-    profile.last_updated,
-    profile.created_at
+    profile.created_at,
+    profile.last_updated
   );
 }
 
@@ -404,7 +404,7 @@ export function saveUserProfile(profile: CognitiveProfile): void {
 export function getUserProfile(): CognitiveProfile | null {
   const result = db.prepare(`
     SELECT * FROM cognitive_profiles WHERE user_id = ?
-  `).get('default') as { user_id: string; profile_data: string; confidence_score: number; last_updated: string; created_at: string } | undefined;
+  `).get('default') as { user_id: string; profile_data: string; confidence_score: number; created_at: string; last_updated: string } | undefined;
 
   if (!result) return null;
 
@@ -412,8 +412,8 @@ export function getUserProfile(): CognitiveProfile | null {
     user_id: result.user_id,
     profile_data: JSON.parse(result.profile_data),
     confidence_score: result.confidence_score,
-    last_updated: result.last_updated,
-    created_at: result.created_at
+    created_at: result.created_at,
+    last_updated: result.last_updated
   };
 }
 

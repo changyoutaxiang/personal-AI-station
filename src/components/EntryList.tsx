@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fetchEntries, removeEntry, generateDailyReport, updateEntriesOrderAction, updateEntryAction } from '@/lib/actions';
+import { fetchEntries, removeEntry, generateDailyReport, updateEntryAction } from '@/lib/actions';
 import type { Entry } from '@/types/index';
 import { debug } from '@/lib/debug';
 import EditEntryForm from './EditEntryForm';
@@ -9,17 +9,21 @@ import { Animated } from './animations';
 import { InteractiveCard, InteractiveButton } from './interactive';
 import { createFadeInAnimation, createScaleAnimation } from '@/lib/animations';
 import EmptyState from './ui/EmptyState';
+import ConfirmDialog from './ui/ConfirmDialog';
 
 
 export default function EntryList() {
+  console.log('🚀 EntryList 组件已加载');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showReport, setShowReport] = useState(false);
   const [dailyReport, setDailyReport] = useState<string>('');
 
-  const [draggedEntry, setDraggedEntry] = useState<Entry | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  // 删除相关状态
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+
   
   // 标签编辑相关状态
   const [editingTag, setEditingTag] = useState<{ entryId: number; tagType: string } | null>(null);
@@ -45,25 +49,51 @@ export default function EntryList() {
 
   const loadEntries = async () => {
     try {
+      console.log('🔄 开始加载记录...');
       const result = await fetchEntries();
+      console.log('📦 fetchEntries 返回结果:', result);
+      
       if (result.success) {
+        console.log('✅ 成功获取记录数据:', result.data.length, '条记录');
+        console.log('🔍 前3条记录的标签数据:', result.data.slice(0, 3).map(e => ({
+          id: e.id,
+          project_tag: e.project_tag,
+          daily_report_tag: e.daily_report_tag
+        })));
         setEntries(result.data);
+      } else {
+        console.error('❌ 加载记录失败:', result.error);
+        debug.error('加载记录失败:', result.error);
+        setEntries([]);
       }
     } catch (error) {
+      console.error('💥 loadEntries 异常:', error);
       debug.error('加载记录失败:', error);
+      setEntries([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('确定要删除这条记录吗？')) {
+    try {
+      setDeletingId(id);
       const result = await removeEntry(id);
       if (result.success) {
         loadEntries();
       }
+    } finally {
+      setDeletingId(null);
+      setShowDeleteConfirm(false);
+      setDeleteTargetId(null);
     }
   };
+
+  const openDeleteConfirm = (id: number) => {
+    setDeleteTargetId(id);
+    setShowDeleteConfirm(true);
+  };
+
 
   // 开始编辑标签
   const startEditTag = (entryId: number, tagType: string, currentValue: string) => {
@@ -116,20 +146,6 @@ export default function EntryList() {
   // 获取标签选项
   const getTagOptions = (tagType: string) => {
     switch (tagType) {
-      case 'attribute_tag':
-        return [
-          { value: '今日跟进', label: '📅 今日跟进' },
-          { value: '本周跟进', label: '📆 本周跟进' },
-          { value: '本月提醒', label: '🗓️ 本月提醒' },
-          { value: '无', label: '➖ 无' }
-        ];
-      case 'urgency_tag':
-        return [
-          { value: 'Jack 交办', label: '🔥 Jack 交办' },
-          { value: '重要承诺', label: '⚡ 重要承诺' },
-          { value: '临近 deadline', label: '⏰ 临近 deadline' },
-          { value: '无', label: '➖ 无' }
-        ];
       case 'daily_report_tag':
         return [
           { value: '核心进展', label: '📈 核心进展' },
@@ -218,8 +234,55 @@ export default function EntryList() {
     try {
       const result = await generateDailyReport();
       if (result.success && result.data) {
-        setDailyReport(result.data);
+        // 处理新的返回格式
+        if (typeof result.data === 'string') {
+          // 向后兼容旧格式
+          setDailyReport(result.data);
+        } else if (result.data.type === 'simple' || result.data.type === 'fallback') {
+          // 简单格式或回退格式
+          setDailyReport(result.data.content || '报告内容为空');
+        } else if (result.data.type === 'ai_enhanced' && result.data.analysis) {
+          // AI增强格式 - 转换为可读文本
+          const analysis = result.data.analysis;
+          const reportText = `# ${analysis.date} AI智能日报
+
+## 📊 执行总结
+${analysis.executive_summary}
+
+## 🎯 核心成就
+${analysis.key_achievements.map((achievement: string, index: number) => `${index + 1}. ${achievement}`).join('\n')}
+
+## 📈 效率分析
+**完成率评估**: ${analysis.efficiency_analysis?.completion_rate_assessment || '暂无'}
+**时间分配**: ${analysis.efficiency_analysis?.time_allocation || '暂无'}  
+**精力管理**: ${analysis.efficiency_analysis?.energy_management || '暂无'}
+
+## 💡 关键洞察
+${analysis.insights.map((insight: string, index: number) => `${index + 1}. ${insight}`).join('\n')}
+
+${analysis.bottlenecks && analysis.bottlenecks.length > 0 ? `## ⚠️ 发现瓶颈
+${analysis.bottlenecks.map((bottleneck: string, index: number) => `${index + 1}. ${bottleneck}`).join('\n')}` : ''}
+
+## 🚀 明日优化
+**优先关注**: ${analysis.tomorrow_optimization?.priority_focus || '暂无'}
+**方法建议**: ${analysis.tomorrow_optimization?.method_suggestions || '暂无'}
+**习惯调整**: ${analysis.tomorrow_optimization?.habit_adjustments || '暂无'}
+
+## ✅ 行动建议
+${analysis.actionable_tips.map((tip: string, index: number) => `${index + 1}. ${tip}`).join('\n')}
+
+---
+*由AI智能分析生成 - ${new Date().toLocaleString('zh-CN')}*`;
+          setDailyReport(reportText);
+        } else {
+          setDailyReport('未知的报告格式');
+        }
         setShowReport(true);
+        
+        // 显示警告信息（如果有）
+        if (typeof result.data === 'object' && result.data.warning) {
+          debug.log('⚠️ 日报生成警告:', result.data.warning);
+        }
       }
     } catch (error) {
       debug.error('生成日报失败:', error);
@@ -238,95 +301,7 @@ export default function EntryList() {
 
   // 移除了过时的5星评级系统
 
-  // 拖拽开始
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, entry: Entry) => {
-    debug.log('🎯 开始拖拽记录:', entry.id);
-    setDraggedEntry(entry);
-    setIsDragging(true);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', entry.id.toString());
-  };
 
-  // 拖拽结束
-  const handleDragEnd = () => {
-    debug.log('🎯 拖拽结束');
-    setDraggedEntry(null);
-    setDragOverIndex(null);
-    setIsDragging(false);
-  };
-
-  // 拖拽悬停
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (dragOverIndex !== index) {
-      setDragOverIndex(index);
-    }
-  };
-
-  // 拖拽离开
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    // 只在离开整个拖拽区域时清除
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setDragOverIndex(null);
-    }
-  };
-
-  // 处理放置
-  const handleDrop = async (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
-    e.preventDefault();
-    debug.log('🎯 处理放置，目标位置:', dropIndex);
-    
-    if (!draggedEntry) {
-      debug.log('❌ 没有被拖拽的记录');
-      return;
-    }
-
-    const dragIndex = entries.findIndex(entry => entry.id === draggedEntry.id);
-    if (dragIndex === -1 || dragIndex === dropIndex) {
-      debug.log('❌ 无效的拖拽操作');
-      return;
-    }
-
-    try {
-      debug.log(`🔄 移动记录 ${draggedEntry.id} 从位置 ${dragIndex} 到 ${dropIndex}`);
-      
-      // 创建新的排序数组
-      const newEntries = [...entries];
-      const [movedEntry] = newEntries.splice(dragIndex, 1);
-      newEntries.splice(dropIndex, 0, movedEntry);
-      
-      // 立即更新UI（乐观更新）
-      setEntries(newEntries);
-      
-      // 准备排序更新数据
-      const orderUpdates = newEntries.map((entry, index) => ({
-        id: entry.id,
-        sort_order: newEntries.length - index // 新记录排在前面，所以使用倒序
-      }));
-      
-      debug.log('📝 批量更新排序:', orderUpdates.slice(0, 3));
-      
-      // 调用Server Action更新数据库
-      const result = await updateEntriesOrderAction(orderUpdates);
-      
-      if (result.success) {
-        debug.log('✅ 排序更新成功:', result.data);
-      } else {
-        debug.error('❌ 排序更新失败:', result.error);
-        // 如果更新失败，恢复原始顺序
-        loadEntries();
-      }
-    } catch (error) {
-      debug.error('❌ 拖拽排序失败:', error);
-      // 出错时恢复原始顺序
-      loadEntries();
-    } finally {
-      setDraggedEntry(null);
-      setDragOverIndex(null);
-      setIsDragging(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -343,39 +318,6 @@ export default function EntryList() {
 
   return (
     <div className="space-y-6">
-      {entries.length > 0 && (
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <h2 className="text-2xl font-bold flex items-center gap-3" style={{color: 'var(--foreground)'}}>
-                <span className="text-3xl animate-thoughtBubble">📝</span>
-                <span style={{color: 'var(--text-primary)'}}>
-                  思维轨迹
-                </span>
-              </h2>
-              <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-[var(--flow-primary)]/50 rounded-full"></div>
-            </div>
-            <div className="px-3 py-1 rounded-full border backdrop-blur-sm" style={{ backgroundColor: 'var(--card-glass)', borderColor: 'var(--card-border)' }}>
-              <span className="text-sm font-medium" style={{color: 'var(--text-secondary)'}}>{entries.length} 条记录</span>
-            </div>
-          </div>
-          <div className="flex gap-2">
-
-            <button
-              onClick={handleGenerateReport}
-              className="group px-6 py-3 rounded-xl hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 backdrop-blur-sm flex items-center gap-3"
-              style={{
-                backgroundColor: 'var(--flow-primary)',
-                color: 'var(--text-on-primary)',
-                border: '1px solid var(--flow-primary)'
-              }}
-            >
-              <span className="text-lg group-hover:animate-bounce transition-transform duration-300">📊</span>
-              <span className="font-medium">日报</span>
-            </button>
-          </div>
-        </div>
-      )}
       
       {/* 添加自定义动画样式 */}
       <style jsx>{`
@@ -411,43 +353,6 @@ export default function EntryList() {
         }
       `}</style>
 
-      {showReport && (
-        <div className="rounded-lg shadow-sm p-4 mb-4 border" style={{
-          backgroundColor: 'var(--card-glass)',
-          borderColor: 'var(--card-border)',
-          color: 'var(--text-primary)'
-        }}>
-          <div className="flex justify-between items-start mb-3">
-            <h3 className="font-semibold text-lg">📊 今日日报</h3>
-            <button
-              onClick={() => setShowReport(false)}
-              className="text-xl leading-none hover:opacity-80"
-              style={{ color: 'var(--text-secondary)' }}
-              title="关闭"
-            >
-              ✕
-            </button>
-          </div>
-          <pre className="whitespace-pre-wrap text-sm p-4 rounded border font-mono leading-relaxed" style={{
-            backgroundColor: 'var(--card-glass)',
-            borderColor: 'var(--card-border)',
-            color: 'var(--text-primary)'
-          }}>{dailyReport}</pre>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(dailyReport);
-              alert('已复制到剪贴板');
-            }}
-            className="mt-3 px-4 py-2 rounded text-sm transition-colors hover:opacity-80"
-            style={{
-              backgroundColor: 'var(--flow-primary)',
-              color: 'white'
-            }}
-          >
-            📋 复制日报
-          </button>
-        </div>
-      )}
 
       {entries.length === 0 ? (
         <EmptyState 
@@ -483,48 +388,12 @@ export default function EntryList() {
               <div
                 className={`h-full rounded-2xl overflow-hidden`}
                 style={{
-                  backgroundColor: 'var(--card-glass)',
-                  ...(draggedEntry?.id === entry.id ? {
-                    opacity: 0.5,
-                    transform: 'rotate(2deg) scale(1.05)',
-                    outline: '1px solid var(--flow-primary)',
-                    boxShadow: '0 0 0 1px var(--flow-primary), 0 10px 25px color-mix(in oklab, var(--flow-primary) 30%, transparent)'
-                  } : {}),
-                  ...(dragOverIndex === index ? {
-                    borderTop: '4px solid var(--flow-primary)',
-                    backgroundColor: 'color-mix(in oklab, var(--flow-primary) 20%, transparent)'
-                  } : {})
+                  backgroundColor: 'var(--card-glass)'
                 }}
-                draggable={true}
-                onDragStart={(e) => handleDragStart(e, entry)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, index)}
-                title="拖拽可重新排序记录"
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-start gap-3 flex-1">
-                    {/* 拖拽手柄 */}
-                    <div className={`flex-shrink-0 mt-1 transition-all duration-300`}
-                         style={{
-                           color: isDragging ? 'var(--flow-primary)' : 'var(--text-muted)',
-                           transform: isDragging ? 'scale(1.1)' : 'scale(1)'
-                         }}
-                         onMouseEnter={(e) => {
-                           if (!isDragging) {
-                             e.currentTarget.style.color = 'var(--text-secondary)';
-                           }
-                         }}
-                         onMouseLeave={(e) => {
-                           if (!isDragging) {
-                             e.currentTarget.style.color = 'var(--text-muted)';
-                           }
-                         }}>
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-                    </svg>
-                  </div>
+
                   
                   <div className="flex-1 min-w-0">
                     <p className="whitespace-pre-wrap mb-4 leading-relaxed font-medium" style={{color: 'var(--foreground)'}}>{entry.content}</p>
@@ -532,137 +401,76 @@ export default function EntryList() {
                     <div className="flex flex-wrap gap-3 text-sm">
                       {/* 项目标签 */}
                       <div className="relative">
-                        {entry.project_tag ? (
-                          <span 
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all duration-300 border backdrop-blur-sm"
-                            style={{ 
-                              backgroundColor: 'var(--tag-blue-bg)', 
-                              color: 'var(--tag-blue-text)',
-                              borderColor: 'var(--tag-blue-border)'
-                            }}
-                            onClick={() => startEditTag(entry.id, 'project_tag', entry.project_tag || '')}
-                          >
-                            <span className="text-base">📁</span>
-                            <span>{entry.project_tag}</span>
-                          </span>
-                        ) : (
-                          <span 
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all duration-300 border backdrop-blur-sm"
-                            style={{ 
-                              backgroundColor: 'var(--card-glass)', 
-                              color: 'var(--text-muted)',
-                              borderColor: 'var(--card-border)' 
-                            }}
-                            onClick={() => startEditTag(entry.id, 'project_tag', '')}
-                          >
-                            <span className="text-base">📁</span>
-                            <span>+</span>
-                          </span>
-                        )}
+                        {(() => {
+                          return entry.project_tag && entry.project_tag !== '无' ? (
+                            <span 
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all duration-300 border backdrop-blur-sm"
+                              style={{ 
+                                backgroundColor: 'var(--tag-blue-bg)', 
+                                color: 'var(--tag-blue-text)',
+                                borderColor: 'var(--tag-blue-border)'
+                              }}
+                              onClick={() => startEditTag(entry.id, 'project_tag', entry.project_tag || '')}
+                            >
+                              <span className="text-base">📁</span>
+                              <span>{entry.project_tag}</span>
+                            </span>
+                          ) : (
+                            <span 
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer hover:opacity-80 transition-all duration-300 border backdrop-blur-sm"
+                              style={{
+                                backgroundColor: 'var(--tag-blue-bg)',
+                                color: 'var(--tag-blue-text)',
+                                borderColor: 'var(--tag-blue-border)'
+                              }}
+                              onClick={() => startEditTag(entry.id, 'project_tag', entry.project_tag || '无')}
+                            >
+                              <span className="text-base">📁</span>
+                              <span>+</span>
+                            </span>
+                          );
+                        })()}
                         {renderTagEditor(entry.id, 'project_tag')}
                       </div>
                       
-                      {/* 紧急标签 */}
-                      <div className="relative">
-                        {entry.attribute_tag && entry.attribute_tag !== '无' ? (
-                          <span 
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all duration-300 border backdrop-blur-sm"
-                            style={{ 
-                              backgroundColor: 'var(--tag-green-bg)', 
-                              color: 'var(--tag-green-text)',
-                              borderColor: 'var(--tag-green-border)' 
-                            }}
-                            onClick={() => startEditTag(entry.id, 'attribute_tag', entry.attribute_tag || '')}
-                          >
-                            <span className="text-base">
-                              {entry.attribute_tag === '今日跟进' && '📅'}
-                              {entry.attribute_tag === '本周跟进' && '📆'}
-                              {entry.attribute_tag === '本月提醒' && '🗓️'}
-                            </span>
-                            <span>{entry.attribute_tag}</span>
-                          </span>
-                        ) : (
-                          <span 
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer hover:opacity-80 transition-all duration-300 border backdrop-blur-sm"
-                            style={{
-                              backgroundColor: 'var(--card-glass)',
-                              color: 'var(--text-muted)',
-                              borderColor: 'var(--card-border)'
-                            }}
-                            onClick={() => startEditTag(entry.id, 'attribute_tag', entry.attribute_tag || '无')}
-                          >
-                            <span className="text-base">📅</span>
-                            <span>+</span>
-                          </span>
-                        )}
-                        {renderTagEditor(entry.id, 'attribute_tag')}
-                      </div>
-                      
-                      {/* 重要标签 */}
-                      <div className="relative">
-                        {entry.urgency_tag && entry.urgency_tag !== '无' ? (
-                          <span 
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all duration-300 border backdrop-blur-sm"
-                            style={{ 
-                              backgroundColor: 'var(--tag-red-bg)', 
-                              color: 'var(--tag-red-text)',
-                              borderColor: 'var(--tag-red-border)' 
-                            }}
-                            onClick={() => startEditTag(entry.id, 'urgency_tag', entry.urgency_tag || '')}
-                          >
-                            <span className="text-base">
-                              {entry.urgency_tag === 'Jack 交办' && '🔥'}
-                              {entry.urgency_tag === '重要承诺' && '⚡'}
-                              {entry.urgency_tag === '临近 deadline' && '⏰'}
-                            </span>
-                            <span>{entry.urgency_tag}</span>
-                          </span>
-                        ) : (
-                          <span 
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer hover:opacity-80 transition-all duration-300 border backdrop-blur-sm"
-                            style={{ 
-                              backgroundColor: 'var(--card-glass)', 
-                              color: 'var(--text-muted)',
-                              borderColor: 'var(--card-border)' 
-                            }}
-                            onClick={() => startEditTag(entry.id, 'urgency_tag', entry.urgency_tag || '无')}
-                          >
-                            <span className="text-base">🔥</span>
-                            <span>+</span>
-                          </span>
-                        )}
-                        {renderTagEditor(entry.id, 'urgency_tag')}
-                      </div>
+
                       
                       {/* 日报标签 */}
                       <div className="relative">
-                        {entry.daily_report_tag && entry.daily_report_tag !== '无' ? (
-                          <span 
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all duration-300 border backdrop-blur-sm"
-                            onClick={() => startEditTag(entry.id, 'daily_report_tag', entry.daily_report_tag || '')}
-                          >
-                            <span className="text-base">
-                              {entry.daily_report_tag === '核心进展' && '📈'}
-                              {entry.daily_report_tag === '问题与卡点' && '🚫'}
-                              {entry.daily_report_tag === '思考与困惑' && '🤔'}
-                              {entry.daily_report_tag === 'AI学习' && '🤖'}
+                        {(() => {
+                          return entry.daily_report_tag && entry.daily_report_tag !== '无' ? (
+                            <span 
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all duration-300 border backdrop-blur-sm"
+                              style={{ 
+                                backgroundColor: 'var(--tag-purple-bg)', 
+                                color: 'var(--tag-purple-text)',
+                                borderColor: 'var(--tag-purple-border)'
+                              }}
+                              onClick={() => startEditTag(entry.id, 'daily_report_tag', entry.daily_report_tag || '')}
+                            >
+                              <span className="text-base">
+                                {entry.daily_report_tag === '核心进展' && '📈'}
+                                {entry.daily_report_tag === '问题与卡点' && '🚫'}
+                                {entry.daily_report_tag === '思考与困惑' && '🤔'}
+                                {entry.daily_report_tag === 'AI学习' && '🤖'}
+                              </span>
+                              <span>{entry.daily_report_tag}</span>
                             </span>
-                            <span>{entry.daily_report_tag}</span>
-                          </span>
-                        ) : (
-                          <span 
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer hover:opacity-80 transition-all duration-300 border backdrop-blur-sm"
-                            style={{
-                              backgroundColor: 'var(--tag-purple-bg)',
-                              color: 'var(--tag-purple-text)',
-                              borderColor: 'var(--tag-purple-border)'
-                            }}
-                            onClick={() => startEditTag(entry.id, 'daily_report_tag', entry.daily_report_tag || '无')}
-                          >
-                            <span className="text-base">📈</span>
-                            <span>+</span>
-                          </span>
-                        )}
+                          ) : (
+                            <span 
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer hover:opacity-80 transition-all duration-300 border backdrop-blur-sm"
+                              style={{
+                                backgroundColor: 'var(--tag-purple-bg)',
+                                color: 'var(--tag-purple-text)',
+                                borderColor: 'var(--tag-purple-border)'
+                              }}
+                              onClick={() => startEditTag(entry.id, 'daily_report_tag', entry.daily_report_tag || '无')}
+                            >
+                              <span className="text-base">📈</span>
+                              <span>+</span>
+                            </span>
+                          );
+                        })()}
                         {renderTagEditor(entry.id, 'daily_report_tag')}
                       </div>
                     </div>
@@ -695,7 +503,7 @@ export default function EntryList() {
                     </svg>
                   </button>
                   <button
-                    onClick={() => handleDelete(entry.id)}
+                    onClick={() => openDeleteConfirm(entry.id)}
                     className="group/btn p-2 rounded-lg transition-all duration-300 border backdrop-blur-sm hover:bg-opacity-80"
                     style={{ 
                       color: 'var(--text-muted)',
@@ -722,10 +530,7 @@ export default function EntryList() {
               </div>
               
               <div className="flex justify-between items-center text-sm mt-4 pt-4 pb-3 border-t" style={{color: 'var(--text-muted)', borderColor: 'var(--card-border)'}}>
-                <span className="font-medium">{formatDate(entry.created_at)}</span>
-                {draggedEntry?.id === entry.id && (
-                  <span className="font-medium animate-pulse" style={{color: 'var(--flow-primary)'}}>正在移动...</span>
-                )}
+                <span className="font-medium">条目 #{entry.id}</span>
               </div>
               
               {/* 玻璃拟态装饰 */}
@@ -749,6 +554,20 @@ export default function EntryList() {
           </div>
         </div>
       )}
+
+      {/* 删除确认对话框（居中显示） */}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="确认删除"
+        description="您确定要删除这条记录吗？此操作无法撤销。"
+        cancelText="取消"
+        confirmText={deletingId != null ? '删除中...' : '确认删除'}
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={() => deleteTargetId != null && handleDelete(deleteTargetId)}
+        loading={deletingId != null}
+        danger
+      />
     </div>
   );
 }

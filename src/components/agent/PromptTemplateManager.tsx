@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import type { PromptTemplate } from './types';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface PromptTemplateManagerProps {
   onApplyTemplate?: (systemPrompt: string) => void;
@@ -133,6 +134,10 @@ export default function PromptTemplateManager({ onApplyTemplate, currentConversa
     description: '',
     is_favorite: false
   });
+  // 删除确认相关状态
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTargetTemplate, setDeleteTargetTemplate] = useState<PromptTemplate | null>(null);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
 
   // 默认模板
   const DEFAULT_TEMPLATES = [
@@ -331,16 +336,13 @@ export default function PromptTemplateManager({ onApplyTemplate, currentConversa
   };
 
   // 删除模板
-  const handleDeleteTemplate = async (template: PromptTemplate) => {
-    if (!confirm(`确定要删除模板"${template.name}"吗？此操作不可撤销。`)) {
-      return;
-    }
-
+  const handleDeleteTemplate = async () => {
+    if (!deleteTargetTemplate) return;
     try {
-      const response = await fetch(`/api/agent/prompts/${template.id}`, {
+      setDeletingTemplateId(deleteTargetTemplate.id);
+      const response = await fetch(`/api/agent/prompts/${deleteTargetTemplate.id}`, {
         method: 'DELETE'
       });
-
       const data = await response.json();
       if (data.success) {
         toast.success('模板删除成功');
@@ -351,7 +353,16 @@ export default function PromptTemplateManager({ onApplyTemplate, currentConversa
     } catch (error) {
       console.error('删除模板失败:', error);
       toast.error('删除模板失败');
+    } finally {
+      setDeletingTemplateId(null);
+      setShowDeleteConfirm(false);
+      setDeleteTargetTemplate(null);
     }
+  };
+
+  const openDeleteConfirm = (template: PromptTemplate) => {
+    setDeleteTargetTemplate(template);
+    setShowDeleteConfirm(true);
   };
 
   // 切换收藏状态
@@ -565,7 +576,7 @@ export default function PromptTemplateManager({ onApplyTemplate, currentConversa
                         ✏️
                       </button>
                       <button
-                        onClick={() => handleDeleteTemplate(template)}
+                        onClick={() => openDeleteConfirm(template)}
                         className="px-2 py-1 text-xs border rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-600"
                         style={{ borderColor: 'var(--card-border)' }}
                         title="删除"
@@ -830,6 +841,20 @@ export default function PromptTemplateManager({ onApplyTemplate, currentConversa
           }}
         />
       )}
+
+      {/* 删除模板确认弹窗 */}
+      <ConfirmDialog
+        open={showDeleteConfirm && !!deleteTargetTemplate}
+        title="确认删除"
+        description={`确定要删除模板“${deleteTargetTemplate?.name}”吗？此操作不可撤销。`}
+        cancelText="取消"
+        confirmText={deletingTemplateId != null ? '删除中...' : '确认删除'}
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteTemplate}
+        loading={deletingTemplateId != null}
+        danger
+        zIndexClassName="z-50"
+      />
     </>
   );
 }

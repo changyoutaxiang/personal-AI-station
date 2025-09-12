@@ -1,6 +1,10 @@
 // AI 模型配置常量
-// 该文件独立于数据库层，可安全用于前端组件
+// ⚠️ 已弃用 - 请使用 ai-providers.ts 中的 getAllAvailableModels() 函数获取最新的模型列表
+// 该文件为向后兼容而保留，新代码应使用统一的供应商配置
 
+import { getAllAvailableModels } from './ai-providers';
+
+// @deprecated 使用 getAllAvailableModels() 代替
 export const AVAILABLE_MODELS = [
   { value: 'openai/o3', label: 'OpenAI O3' },
   { value: 'openai/gpt-5-chat', label: 'GPT-5 Chat' },
@@ -15,7 +19,14 @@ export const AVAILABLE_MODELS = [
 ];
 
 // 模型类型定义
+// @deprecated 使用 ai-providers.ts 中的类型定义
 export interface ModelOption {
   value: string;
   label: string;
+}
+
+// 新的统一数据源访问函数
+// 推荐使用这个函数而不是 AVAILABLE_MODELS 常量
+export function getAvailableModels() {
+  return getAllAvailableModels();
 }

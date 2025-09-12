@@ -1,26 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { addEntry, polishTextAction } from '@/lib/actions';
 import { trackEvent } from '@/lib/client-tracker';
 import { debug } from '@/lib/debug';
 import AIQuestions from './AIQuestions';
 import SimilarContent from './SimilarContent';
-import { Animated } from './animations';
 import { InteractiveButton } from './interactive';
-import { createScaleAnimation, createFadeInAnimation } from '@/lib/animations';
 
 
-export default function EntryForm() {
-  const [content, setContent] = useState('');
-  const [projectTag, setProjectTag] = useState('');
+interface EntryFormProps {
+  initialContent?: string;
+}
+
+export default function EntryForm({ initialContent = '' }: EntryFormProps) {
+  const [content, setContent] = useState(initialContent);
+  const [projectTag, setProjectTag] = useState('无');
 
   // 高级选项状态（恢复完整功能）
 
-  const [attributeTag, setAttributeTag] = useState('无');
-  const [urgencyTag, setUrgencyTag] = useState('Jack 交办');
-  const [dailyReportTag, setDailyReportTag] = useState('核心进展');
-  const [resourceTag, setResourceTag] = useState('自己搞定');
+  const [dailyReportTag, setDailyReportTag] = useState('无');
 
 
   
@@ -32,9 +31,19 @@ export default function EntryForm() {
   const [polishedText, setPolishedText] = useState<string | null>(null);
   const [showComparison, setShowComparison] = useState(false);
   
+  
 
 
 
+
+
+
+
+
+
+  const handleInputChange = (text: string) => {
+    setContent(text);
+  };
 
 
 
@@ -59,9 +68,9 @@ export default function EntryForm() {
     setPolishedText(null);
 
     try {
+      // 使用统一的润色功能
       const result = await polishTextAction(content);
       
-      // 追踪AI交互
       // 追踪AI交互
       trackEvent.aiInteraction('text_polish', {
         original_length: content.length,
@@ -122,10 +131,7 @@ export default function EntryForm() {
     formData.append('project_tag', projectTag);
 
 
-    formData.append('attribute_tag', attributeTag);
-    formData.append('urgency_tag', urgencyTag);
     formData.append('daily_report_tag', dailyReportTag);
-    formData.append('resource_tag', resourceTag);
 
 
     formData.append('effort_tag', '轻松');
@@ -133,10 +139,7 @@ export default function EntryForm() {
     try {
       debug.log('🚀 Submitting form with data:', {
         content: content.slice(0, 50) + '...',
-        projectTag,
-
-        attributeTag,
-        urgencyTag
+        projectTag
       });
       
       const result = await addEntry(formData);
@@ -155,12 +158,9 @@ export default function EntryForm() {
 
         
         setContent('');
-        setProjectTag('');
+        setProjectTag('无');
 
-        setAttributeTag('无');
-        setUrgencyTag('Jack 交办');
-        setDailyReportTag('核心进展');
-        setResourceTag('自己搞定');
+        setDailyReportTag('无');
         
 
         setMessage('✅ 记录保存成功！');
@@ -186,77 +186,107 @@ export default function EntryForm() {
 
   return (
     <>
-    <form onSubmit={handleSubmit} className="space-y-6" data-entry-form>
+    <form onSubmit={handleSubmit} className="space-y-4" data-entry-form>
       {/* 第一层：核心输入区（平衡模式：始终可见，简化设计） */}
       <div className="space-y-4">
-        <div className="relative">
-          <textarea
-            id="content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault();
-                const form = e.currentTarget.form;
-                if (form) {
-                  form.requestSubmit();
+        {/* 输入区域和AI按钮的横向布局 */}
+        <div className="flex gap-4">
+          {/* 文本输入区域 */}
+          <div className="flex-1 relative">
+            <textarea
+              id="content"
+              value={content}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.ctrlKey && e.key === 'Enter') {
+                  e.preventDefault();
+                  const form = e.currentTarget.form;
+                  if (form) {
+                    form.requestSubmit();
+                  }
                 }
-              }
-            }}
-            placeholder="记录你的想法... (Ctrl+Enter 快速保存)"
-            className="w-full h-32 p-4 border rounded-xl resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50 focus:border-[var(--flow-primary)]/50"
-            style={{
-              backgroundColor: 'var(--card-glass, rgba(255, 255, 255, 0.1))',
-              borderColor: 'var(--card-border, rgba(255, 255, 255, 0.2))',
-              color: 'var(--text-primary)',
-              '--placeholder-color': 'var(--text-secondary)'
-            } as React.CSSProperties & { '--placeholder-color': string }}
-            rows={5}
-            required
-            disabled={isSubmitting}
-          />
-          <div className="absolute bottom-3 right-3 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-            {content.length}/1000
+              }}
+              placeholder="记录你的想法... (Ctrl+Enter 快速保存)"
+              className="w-full h-56 p-4 border rounded-xl resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50 focus:border-[var(--flow-primary)]/50"
+              style={{
+                backgroundColor: 'var(--card-glass, rgba(255, 255, 255, 0.1))',
+                borderColor: 'var(--card-border, rgba(255, 255, 255, 0.2))',
+                color: 'var(--text-primary)',
+                '--placeholder-color': 'var(--text-secondary)'
+              } as React.CSSProperties & { '--placeholder-color': string }}
+              rows={5}
+              required
+              disabled={isSubmitting}
+            />
+            <div className="absolute bottom-3 right-3 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+              {content.length}/1000
+            </div>
+          </div>
+
+          {/* AI功能按钮区域（纵向排列） */}
+          <div className="flex flex-col gap-3 justify-start pt-2">
+            {/* 文本润色 */}
+            <button
+              onClick={handlePolish}
+              disabled={isPolishing || !content.trim() || content.length > 500}
+              className={`group relative w-12 h-12 rounded-full flex items-center justify-center font-medium transition-all duration-300 shadow-sm border-2 ${
+                isPolishing 
+                  ? 'bg-gray-100/80 text-gray-400 cursor-not-allowed shadow-none border-gray-200' 
+                  : 'bg-gradient-to-br from-purple-500/10 to-purple-600/5 text-purple-600 border-purple-200/50 hover:from-purple-500/20 hover:to-purple-600/15 hover:border-purple-300/70 hover:shadow-lg hover:shadow-purple-500/20 hover:-translate-y-0.5 active:translate-y-0 hover:scale-105'
+              }`}
+            >
+              <span className={`text-lg transition-transform duration-300 ${
+                isPolishing ? '' : 'group-hover:scale-110 group-hover:rotate-12'
+              }`}>
+                {isPolishing ? '⏳' : '✨'}
+              </span>
+            </button>
+
+            {/* 智能提问 */}
+            <div className="flex items-center">
+              <AIQuestions 
+                content={content}
+                onQuestionInsert={(question) => {
+                  setContent(prev => prev + '\n\n' + question);
+                }}
+              />
+            </div>
+
+            {/* 查找相似记录 */}
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined' && (window as any).triggerSimilarityCheck) {
+                  (window as any).triggerSimilarityCheck();
+                }
+              }}
+              disabled={!content.trim() || content.trim().length < 10}
+              className={`group relative w-12 h-12 rounded-full flex items-center justify-center font-medium transition-all duration-300 shadow-sm border-2 ${
+                !content.trim() || content.trim().length < 10
+                  ? 'bg-gray-100/80 text-gray-400 cursor-not-allowed shadow-none border-gray-200' 
+                  : 'bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 text-emerald-600 border-emerald-200/50 hover:from-emerald-500/20 hover:to-emerald-600/15 hover:border-emerald-300/70 hover:shadow-lg hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0 hover:scale-105'
+              }`}
+            >
+              <span className={`text-lg transition-transform duration-300 ${
+                !content.trim() || content.trim().length < 10 ? '' : 'group-hover:scale-110'
+              }`}>
+                🔍
+              </span>
+            </button>
           </div>
         </div>
 
 
       </div>
 
-      {/* AI功能区域（简化为小按钮） */}
-      <div className="border-t pt-4" style={{borderColor: 'var(--card-border)'}}>
-        <div className="flex gap-3">
-          {/* 文本润色 */}
-          <InteractiveButton
-            onClick={handlePolish}
-            disabled={isPolishing || !content.trim() || content.length > 500}
-            loading={isPolishing}
-            className={`px-4 py-2 text-sm rounded-lg border flex items-center gap-2 ${
-              isPolishing 
-                ? 'bg-gray-500/30 border-gray-500/50 text-gray-500 cursor-not-allowed' 
-                : 'bg-[var(--flow-primary)]/20 border-[var(--flow-primary)]/50 text-[var(--flow-primary)] font-medium hover:bg-[var(--flow-primary)]/30 hover:text-white'
-            }`}
-            animation="scale"
-            ripple={true}
-          >
-            <span className="text-base">{isPolishing ? '⏳' : '✨'}</span>
-            <span>{isPolishing ? '润色中...' : '润色'}</span>
-          </InteractiveButton>
 
-          {/* 智能提问 */}
-          <div className="flex items-center">
-            <AIQuestions 
-              content={content}
-              onQuestionInsert={(question) => {
-                setContent(prev => prev + '\n\n' + question);
-              }}
-            />
-          </div>
-        </div>
+      {/* 润色结果对比区域移到这里 */}
+      <div>
+
 
         {/* 润色结果对比区域（平衡模式：简化样式） */}
         {showComparison && polishedText && (
-          <Animated animation="fadeIn" duration={400} className="mt-4">
+          <div className="mt-4 animate-fade-in">
             <div className="p-4 border rounded-lg" style={{
               backgroundColor: 'color-mix(in oklab, var(--flow-primary) 10%, transparent)',
               borderColor: 'color-mix(in oklab, var(--flow-primary) 30%, transparent)'
@@ -297,96 +327,40 @@ export default function EntryForm() {
               </div>
             </div>
             </div>
-          </Animated>
+          </div>
         )}
       </div>
 
       {/* 高级选项（恢复完整功能，保持简化视觉） */}
-      <div className="border-t pt-4" style={{borderColor: 'var(--card-border)'}}>
-
-        
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
-          <div>
-            <label className="block text-xs font-medium mb-2" style={{color: 'var(--text-secondary)'}}>项目</label>
-            <select
-              value={projectTag}
-              onChange={(e) => setProjectTag(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50"
-              style={{backgroundColor: 'var(--card-glass)', borderColor: 'var(--card-border)', color: 'var(--text-primary)', border: '1px solid'}}
-            >
-              <option value="">选择项目</option>
-              <option value="FSD">🚀 FSD</option>
-              <option value="AIEC">🤖 AIEC</option>
-              <option value="训战营">🎯 训战营</option>
-              <option value="其他">📋 其他</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-2" style={{color: 'var(--text-secondary)'}}>紧急程度</label>
-            <select
-              value={attributeTag}
-              onChange={(e) => setAttributeTag(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50"
-              style={{backgroundColor: 'var(--card-glass)', borderColor: 'var(--card-border)', color: 'var(--text-primary)', border: '1px solid'}}
-            >
-              <option value="今日跟进">📅 今日跟进</option>
-              <option value="本周跟进">📆 本周跟进</option>
-              <option value="本月提醒">🗓️ 本月提醒</option>
-              <option value="无">➖ 无</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-2" style={{color: 'var(--text-secondary)'}}>重要事项</label>
-            <select
-              value={urgencyTag}
-              onChange={(e) => setUrgencyTag(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50"
-              style={{backgroundColor: 'var(--card-glass)', borderColor: 'var(--card-border)', color: 'var(--text-primary)', border: '1px solid'}}
-            >
-              <option value="Jack 交办">🔥 Jack 交办</option>
-              <option value="重要承诺">⚡ 重要承诺</option>
-              <option value="临近 deadline">⏰ 临近 deadline</option>
-              <option value="无">➖ 无</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-2" style={{color: 'var(--text-secondary)'}}>日报分类</label>
-            <select
-              value={dailyReportTag}
-              onChange={(e) => setDailyReportTag(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50"
-              style={{backgroundColor: 'var(--card-glass)', borderColor: 'var(--card-border)', color: 'var(--text-primary)', border: '1px solid'}}
-            >
-              <option value="核心进展">📈 核心进展</option>
-              <option value="问题与卡点">🚫 问题与卡点</option>
-              <option value="思考与困惑">🤔 思考与困惑</option>
-              <option value="AI学习">🤖 AI学习</option>
-              <option value="无">➖ 无</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-2" style={{color: 'var(--text-secondary)'}}>资源消耗</label>
-            <select
-              value={resourceTag}
-              onChange={(e) => setResourceTag(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50"
-              style={{backgroundColor: 'var(--card-glass)', borderColor: 'var(--card-border)', color: 'var(--text-primary)', border: '1px solid'}}
-            >
-              <option value="自己搞定">💪 自己搞定</option>
-              <option value="团队搞定">👥 团队搞定</option>
-              <option value="需要支援">🆘 需要支援</option>
-            </select>
-          </div>
+      <div className="pt-1">
+        <div className="flex gap-3 mb-1" style={{alignItems: 'center'}}>
+          <select
+            value={projectTag}
+            onChange={(e) => setProjectTag(e.target.value)}
+            className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50"
+            style={{backgroundColor: 'var(--card-glass)', borderColor: 'var(--card-border)', color: 'var(--text-primary)', border: '1px solid', minWidth: '110px', maxWidth: '115px'}}
+          >
+            <option value="无">➖ 无</option>
+            <option value="其他">📋 其他</option>
+            <option value="FSD">🚀 FSD</option>
+            <option value="AIEC">🤖 AIEC</option>
+            <option value="训战营">🎯 训战营</option>
+          </select>
 
 
 
-
-
-
+          <select
+            value={dailyReportTag}
+            onChange={(e) => setDailyReportTag(e.target.value)}
+            className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50"
+            style={{backgroundColor: 'var(--card-glass)', borderColor: 'var(--card-border)', color: 'var(--text-primary)', border: '1px solid', minWidth: '110px', maxWidth: '115px'}}
+          >
+            <option value="无">➖ 无</option>
+            <option value="核心进展">📈 核心进展</option>
+            <option value="问题与卡点">🚫 问题与卡点</option>
+            <option value="思考与困惑">🤔 思考与困惑</option>
+            <option value="AI学习">🤖 AI学习</option>
+          </select>
         </div>
       </div>
 
@@ -394,19 +368,20 @@ export default function EntryForm() {
       <SimilarContent 
         content={content} 
         onMergeComplete={() => {
+          debug.log('🔗 Merge completed callback triggered');
           setMessage('✅ 记录已成功合并');
           setContent('');
-          setProjectTag('');
-
-          setAttributeTag('无');
-          setUrgencyTag('Jack 交办');
+          setProjectTag('其他');
           setDailyReportTag('核心进展');
-
-          setTimeout(() => setMessage(''), 3000);
           
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('entryAdded'));
-          }
+          // 延迟触发事件，确保状态已更新
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              debug.log('🔗 Dispatching entryAdded event');
+              window.dispatchEvent(new CustomEvent('entryAdded'));
+            }
+            setTimeout(() => setMessage(''), 3000);
+          }, 100);
         }}
       />
 
@@ -424,22 +399,7 @@ export default function EntryForm() {
         </div>
       )}
 
-      {/* 提交按钮（平衡模式：简化渐变，突出重要性） */}
-      <InteractiveButton
-        disabled={isSubmitting || !content.trim()}
-        loading={isSubmitting}
-        className="w-full bg-[var(--flow-primary)] hover:bg-[var(--flow-secondary)] text-white py-3 px-6 rounded-lg font-medium border border-[var(--flow-primary)]/50 hover:border-[var(--flow-secondary)]/50"
-        animation="bounce"
-        ripple={true}
-      >
-        <span className="text-lg">
-          {isSubmitting ? '⏳' : '💾'}
-        </span>
-        <span>{isSubmitting ? '保存中...' : '保存记录'}</span>
-        {!isSubmitting && (
-          <span className="text-xs opacity-70 ml-2" style={{color: 'white'}}>Ctrl+Enter</span>
-        )}
-      </InteractiveButton>
+
     </form>
 
 

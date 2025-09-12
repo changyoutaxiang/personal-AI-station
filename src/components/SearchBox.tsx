@@ -214,7 +214,7 @@ export default function SearchBox({ onSearchResults, onClearSearch }: SearchBoxP
                   <span className="text-xs">搜索中</span>
                 </div>
               ) : (
-                <span>🔍 搜索</span>
+                <span>🔍</span>
               )}
             </button>
           </div>

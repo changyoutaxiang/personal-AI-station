@@ -17,10 +17,7 @@ interface EditEntryFormProps {
 export default function EditEntryForm({ entry, onSave, onCancel }: EditEntryFormProps) {
   const [content, setContent] = useState(entry.content);
   const [projectTag, setProjectTag] = useState(entry.project_tag || '');
-  const [attributeTag, setAttributeTag] = useState(entry.attribute_tag || '无');
-  const [urgencyTag, setUrgencyTag] = useState(entry.urgency_tag || '无');
   const [dailyReportTag, setDailyReportTag] = useState(entry.daily_report_tag || '无');
-  const [resourceConsumptionTag, setResourceConsumptionTag] = useState(entry.resource_consumption_tag || '低');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -148,10 +145,7 @@ export default function EditEntryForm({ entry, onSave, onCancel }: EditEntryForm
       const updates = {
         content: content.trim(),
         project_tag: projectTag || undefined,
-        attribute_tag: attributeTag,
-        urgency_tag: urgencyTag,
         daily_report_tag: dailyReportTag,
-        resource_consumption_tag: resourceConsumptionTag
       };
 
       debug.log('🚀 更新记录:', { id: entry.id, updates });
@@ -165,7 +159,7 @@ export default function EditEntryForm({ entry, onSave, onCancel }: EditEntryForm
         trackEvent.contentEdit(entry.id, {
           content_changed: content !== entry.content,
           project_tag_changed: projectTag !== entry.project_tag,
-          tags_changed: attributeTag !== entry.attribute_tag || urgencyTag !== entry.urgency_tag
+          tags_changed: dailyReportTag !== entry.daily_report_tag
         });
         
         setMessage('✅ 记录更新成功！');
@@ -323,7 +317,7 @@ export default function EditEntryForm({ entry, onSave, onCancel }: EditEntryForm
         </div>
 
         {/* 标签设置区域 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {/* 项目标签 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">📁 项目</label>
@@ -336,36 +330,6 @@ export default function EditEntryForm({ entry, onSave, onCancel }: EditEntryForm
             />
           </div>
 
-          {/* 紧急程度 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">📅 紧急</label>
-            <select
-              value={attributeTag}
-              onChange={(e) => setAttributeTag(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-            >
-              <option value="今日跟进" className="text-gray-900">📅 今日跟进</option>
-              <option value="本周跟进" className="text-gray-900">📆 本周跟进</option>
-              <option value="本月提醒" className="text-gray-900">🗓️ 本月提醒</option>
-              <option value="无" className="text-gray-900">➖ 无</option>
-            </select>
-          </div>
-
-          {/* 重要程度 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">🔥 重要</label>
-            <select
-              value={urgencyTag}
-              onChange={(e) => setUrgencyTag(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-            >
-              <option value="Jack 交办" className="text-gray-900">🔥 Jack 交办</option>
-              <option value="重要承诺" className="text-gray-900">⚡ 重要承诺</option>
-              <option value="临近 deadline" className="text-gray-900">⏰ 临近 deadline</option>
-              <option value="无" className="text-gray-900">➖ 无</option>
-            </select>
-          </div>
-
           {/* 日报分类 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">📈 日报</label>
@@ -374,28 +338,13 @@ export default function EditEntryForm({ entry, onSave, onCancel }: EditEntryForm
               onChange={(e) => setDailyReportTag(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
             >
+              <option value="无" className="text-gray-900">➖ 无</option>
               <option value="核心进展" className="text-gray-900">📈 核心进展</option>
               <option value="问题与卡点" className="text-gray-900">🚫 问题与卡点</option>
               <option value="思考与困惑" className="text-gray-900">🤔 思考与困惑</option>
               <option value="AI学习" className="text-gray-900">🤖 AI学习</option>
-              <option value="无" className="text-gray-900">➖ 无</option>
             </select>
           </div>
-
-          {/* 资源消耗 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">⚡ 资源消耗</label>
-            <select
-              value={resourceConsumptionTag}
-              onChange={(e) => setResourceConsumptionTag(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-            >
-              <option value="高" className="text-gray-900">🔥 高</option>
-              <option value="低" className="text-gray-900">💧 低</option>
-            </select>
-          </div>
-
-
         </div>
 
         {/* 消息显示 */}

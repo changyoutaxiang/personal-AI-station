@@ -133,7 +133,7 @@ export function quickSearch(query: string, limit = 10): Entry[] {
   const sql = `
     SELECT * FROM entries 
     WHERE ${conditions.join(' AND ')}
-    ORDER BY created_at DESC
+    ORDER BY id DESC
     LIMIT ${limit}
   `;
   
@@ -169,35 +169,37 @@ export function getSearchStats() {
       LIMIT 10
     `).all();
     
-    // 获取最常使用的属性标签
-    const attributeStats = db.prepare(`
-      SELECT attribute_tag, COUNT(*) as count
+    // 获取努力程度分布
+    const effortStats = db.prepare(`
+      SELECT effort_tag, COUNT(*) as count
       FROM entries 
-      WHERE attribute_tag IS NOT NULL AND attribute_tag != ''
-      GROUP BY attribute_tag
+      WHERE effort_tag IS NOT NULL AND effort_tag != ''
+      GROUP BY effort_tag
       ORDER BY count DESC
       LIMIT 10
     `).all();
     
-    // 获取重要性分布
-    const importanceStats = db.prepare(`
-      SELECT importance_tag, COUNT(*) as count
+    // 获取每日报告标签分布
+    const dailyReportStats = db.prepare(`
+      SELECT daily_report_tag, COUNT(*) as count
       FROM entries
-      GROUP BY importance_tag
-      ORDER BY importance_tag DESC
+      WHERE daily_report_tag IS NOT NULL AND daily_report_tag != ''
+      GROUP BY daily_report_tag
+      ORDER BY count DESC
+      LIMIT 10
     `).all();
-    
+
     return {
       topProjects: projectStats,
-      topAttributes: attributeStats,
-      importanceDistribution: importanceStats
+      topEfforts: effortStats,
+      dailyReportDistribution: dailyReportStats
     };
   } catch (error) {
     debug.error('获取搜索统计失败:', error);
     return {
       topProjects: [],
-      topAttributes: [],
-      importanceDistribution: []
+      topEfforts: [],
+      dailyReportDistribution: []
     };
   }
 }

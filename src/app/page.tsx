@@ -1,359 +1,239 @@
 'use client';
 
-import { useState, useEffect, lazy, Suspense } from 'react';
-import { Toaster } from 'react-hot-toast';
-import EntryForm from '@/components/EntryForm';
-import EntryList from '@/components/EntryList';
-import SearchBox from '@/components/SearchBox';
-import SearchResults from '@/components/SearchResults';
-import AIInsights from '@/components/AIInsights';
-import TodoApp from '@/components/TodoApp';
-import AIModelConfig from '@/components/AIModelConfig';
-import PerformanceMonitor from '@/components/PerformanceMonitor';
-import CacheMonitor from '@/components/CacheMonitor';
-import ThemeToggle from '@/components/ThemeToggle';
-import { Animated } from '@/components/animations';
-
-// 懒加载大型组件
-const KnowledgeManager = lazy(() => import('@/components/KnowledgeManager'));
-const DataExport = lazy(() => import('@/components/DataExport'));
-const WeeklyReport = lazy(() => import('@/components/WeeklyReport'));
-const UserProfile = lazy(() => import('@/components/UserProfile'));
-
-// 加载状态组件
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center p-8">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{borderBottomColor: 'var(--flow-primary)'}}></div>
-    <span className="ml-3" style={{color: 'var(--text-secondary)'}}>加载中...</span>
-  </div>
-);
-import { trackEvent } from '@/lib/client-tracker';
-import '@/lib/startup'; // 确保启动初始化被执行
-import type { SearchResult } from '@/types/index';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { MessageCircle, CheckSquare, Brain, Settings, BarChart3, Code, FolderKanban, Timer, Search } from 'lucide-react';
+import SearchComponent from '@/components/ui/animated-glowing-search-bar';
+import ThemeController from '@/components/ThemeController';
+import { PomodoroTimer } from '@/components/todos/PomodoroTimer';
+import { ThemeProvider } from '@/components/todos/ThemeProvider';
+import { useLocalStorage } from '@/hooks/todos/useLocalStorage';
+import { Theme } from '@/types/todo';
 
 
-export default function Home() {
-  const [activeTab, setActiveTab] = useState('records');
-  const [isSearchMode, setIsSearchMode] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
-  const [showCacheMonitor, setShowCacheMonitor] = useState(false);
+export default function HomePage() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showPomodoro, setShowPomodoro] = useState(false);
+  const [theme, setTheme] = useLocalStorage<Theme>('theme', 'sunset');
+  const router = useRouter();
 
-  useEffect(() => {
-    trackEvent.pageView('/');
-  }, []);
-
-  useEffect(() => {
-    trackEvent.pageView(`/tab/${activeTab}`);
-  }, [activeTab]);
-
-  const handleSearchResults = (results: SearchResult) => {
-    setSearchResults(results);
-    setIsSearchMode(true);
+  // HTML代码识别函数
+  const isHtmlCode = (text: string): boolean => {
+    const trimmed = text.trim();
+    // 检查是否包含HTML标签
+    const hasHtmlTags = /<[^>]+>/g.test(trimmed);
+    // 检查是否以HTML文档开头
+    const startsWithDoctype = /^<!DOCTYPE\s+html/i.test(trimmed);
+    const startsWithHtml = /^<html/i.test(trimmed);
+    // 检查是否包含常见HTML结构
+    const hasHtmlStructure = /<(html|head|body|div|p|span|h[1-6]|ul|ol|li|table|tr|td|form|input|button)/i.test(trimmed);
     
-    if (results.searchTerms.length > 0) {
-      trackEvent.search(results.searchTerms.join(' '), results.totalCount);
-    }
+    return (hasHtmlTags && (startsWithDoctype || startsWithHtml || hasHtmlStructure)) || 
+           (trimmed.length > 50 && hasHtmlTags); // 长文本且包含HTML标签
   };
 
-  const handleClearSearch = () => {
-    setIsSearchMode(false);
-    setSearchResults(null);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    const query = searchQuery.trim();
+    
+    // 🎯 暗号功能：HTML代码识别
+    if (isHtmlCode(query)) {
+      try {
+        // 直接使用btoa进行base64编码，处理Unicode字符
+        const base64Html = btoa(unescape(encodeURIComponent(query)));
+        router.push(`/html-renderer?html=${encodeURIComponent(base64Html)}&encoding=base64`);
+        return;
+      } catch (error) {
+        console.error('Base64编码失败，使用传统方法:', error);
+        // 回退到传统方法，但使用更好的错误处理
+        router.push(`/html-renderer?html=${encodeURIComponent(query)}`);
+        return;
+      }
+    }
+    
+    // 硬匹配导航逻辑
+    if (query.startsWith('记录')) {
+      const content = query.slice(2).trim(); // 去除"记录"前缀
+      router.push(`/records?content=${encodeURIComponent(content)}`);
+      return;
+    }
+    
+    if (query.startsWith('待办')) {
+      const content = query.slice(2).trim(); // 去除"待办"前缀
+      router.push(`/todos?action=create&content=${encodeURIComponent(content)}`);
+      return;
+    }
+    
+    if (query.startsWith('提问')) {
+      const content = query.slice(2).trim(); // 去除"提问"前缀
+      router.push(`/agent?message=${encodeURIComponent(content)}`);
+      return;
+    }
+    
+    // 默认行为：搜索记录
+    router.push(`/records?search=${encodeURIComponent(query)}`);
   };
 
-  const handleEntryDeleted = () => {
-    // 如果在搜索模式下删除了条目，需要重新搜索以更新结果
-    if (isSearchMode && searchResults) {
-      // 这里可以触发重新搜索，但为了简单起见，我们清除搜索模式
-      handleClearSearch();
+  const navigationItems = [
+    {
+      icon: Brain,
+      label: '记录',
+      href: '/records',
+      color: 'from-blue-500 to-purple-600'
+    },
+    {
+      icon: MessageCircle,
+      label: '对话',
+      href: '/agent',
+      color: 'from-green-500 to-teal-600'
+    },
+    {
+      icon: CheckSquare,
+      label: '待办',
+      href: '/todos',
+      color: 'from-orange-500 to-red-600'
+    },
+    {
+      icon: FolderKanban,
+      label: '项目',
+      href: '/projects',
+      color: 'from-indigo-500 to-blue-600'
+    },
+    {
+      icon: Code,
+      label: 'HTML渲染',
+      href: '/html-renderer',
+      color: 'from-pink-500 to-rose-600'
+    },
+    {
+      icon: BarChart3,
+      label: '分析',
+      href: '/analysis',
+      color: 'from-purple-500 to-pink-600'
+    },
+    {
+      icon: Settings,
+      label: '设置',
+      href: '/records?tab=config',
+      color: 'from-gray-500 to-slate-600'
+    },
+    {
+      icon: Timer,
+      label: '番茄钟',
+      href: '#',
+      color: 'from-red-500 to-orange-600',
+      onClick: () => setShowPomodoro(!showPomodoro)
     }
-  };
+  ];
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{background: 'var(--background)'}}>
-        {/* 平衡模式：简化背景装饰，保留品牌特色 */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-16 h-16 bg-white rounded-full animate-pulse"></div>
-          <div className="absolute bottom-20 right-20 w-12 h-12 bg-white rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* 默认背景图片 */}
+      <div 
+        id="hero-bg"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-1000"
+        style={{
+          backgroundImage: 'url(/greg-rakozy-oMpAz-DN-9I-unsplash.jpg)',
+        }}
+      >
+      </div>
+
+      {/* 右上角导航 */}
+      <nav className="absolute top-6 right-6 z-20">
+        <div className="flex gap-3">
+          {/* 背景图切换按钮 */}
+          <ThemeController mode="compact" showBackgroundSwitcher={true} iconColor="white" />
+          {navigationItems.map((item) => {
+            const IconComponent = item.icon;
+            return (
+              <button
+                key={item.href}
+                onClick={item.onClick || (() => router.push(item.href))}
+                className={`group relative p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105 ${item.label === '番茄钟' && showPomodoro ? 'bg-white/30' : ''}`}
+                title={item.label}
+              >
+                <IconComponent className="w-5 h-5 text-white" />
+                
+                {/* 悬停提示 */}
+                <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    {item.label}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
-        
-        <div className="max-w-7xl mx-auto px-2 py-6 relative z-10">
-          <header className="mb-8">
-            {/* 页面标题 */}
-            <div className="text-center mb-6">
-              <h1 className="text-3xl font-bold mb-2" style={{color: 'var(--text-primary)'}}>
-                数字大脑
-              </h1>
+      </nav>
+
+      {/* 番茄钟组件 */}
+      <div className="absolute top-20 right-6 z-30">
+        <ThemeProvider theme={theme} setTheme={setTheme}>
+          <PomodoroTimer isVisible={showPomodoro} onToggle={() => setShowPomodoro(!showPomodoro)} />
+        </ThemeProvider>
+      </div>
+
+      {/* 主要内容 */}
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 -mt-16">
+        {/* Slogan */}
+        <div className="text-center mb-5 w-full" style={{ maxWidth: "calc(100% - 2rem)" }}>
+          <h1 className="text-6xl md:text-7xl font-bold text-white mb-4 tracking-tight">
+            May the <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">AI</span> be with you
+          </h1>
+        </div>
+
+        {/* 搜索对话框 */}
+        <div className="w-full max-w-3xl mx-auto px-[5px]">
+          <form onSubmit={handleSearch} className="relative">
+            <div className="relative">
+              <SearchComponent 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder=""
+              />
             </div>
             
-            {/* 功能切换标签 */}
-            <div className="flex justify-center">
-              <div className="rounded-2xl p-2 shadow-xl transition-all duration-300" style={{
-                background: 'var(--card-glass)',
-                border: '1px solid var(--card-border)',
-                boxShadow: 'var(--card-shadow)'
-              }}>
-                <div className="flex gap-2 flex-wrap">
+            {/* 搜索建议 */}
+            {searchQuery && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white/3 backdrop-blur-none border-2 border-white/30 rounded-xl overflow-hidden shadow-lg shadow-white/10">
+                {/* 如果检测到HTML代码，显示特殊提示 */}
+                {isHtmlCode(searchQuery) ? (
                   <button
-                    onClick={() => setActiveTab('records')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 relative overflow-hidden border ${
-                      activeTab === 'records'
-                        ? 'shadow-lg backdrop-blur-md transform scale-105'
-                        : 'hover:opacity-80'
-                    }`}
-                    style={{
-                      backgroundColor: activeTab === 'records' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-glass)',
-                      borderColor: activeTab === 'records' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-border)',
-                      color: activeTab === 'records' ? 'white' : 'var(--text-secondary)'
-                    }}
+                    type="submit"
+                    className="w-full px-4 py-3 text-left text-white hover:bg-white/10 transition-colors duration-200 flex items-center gap-3 bg-gradient-to-r from-pink-500/20 to-rose-500/20"
                   >
-                    📝 记录
+                    <Code className="w-4 h-4" />
+                    <span>🎯 检测到HTML代码，直接渲染</span>
                   </button>
-                  <button
-                    onClick={() => setActiveTab('todos')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 relative overflow-hidden border ${
-                      activeTab === 'todos'
-                        ? 'shadow-lg backdrop-blur-md transform scale-105'
-                        : 'hover:opacity-80'
-                    }`}
-                    style={{
-                      backgroundColor: activeTab === 'todos' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-glass)',
-                      borderColor: activeTab === 'todos' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-border)',
-                      color: activeTab === 'todos' ? 'white' : 'var(--text-secondary)'
-                    }}
-                  >
-                    ✅ 待办
-                  </button>
-                  <button
-                    onClick={() => window.location.href = '/agent'}
-                    className="px-4 py-2 rounded-xl font-medium relative overflow-hidden border"
-                    style={{
-                      background: 'linear-gradient(135deg, var(--flow-primary), #10b981)',
-                      borderColor: 'var(--flow-primary)',
-                      color: 'white'
-                    }}
-                  >
-                    🤖 智能体
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('ai-insights')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 relative overflow-hidden border ${
-                      activeTab === 'ai-insights'
-                        ? 'shadow-lg backdrop-blur-md transform scale-105'
-                        : 'hover:opacity-80'
-                    }`}
-                    style={{
-                      backgroundColor: activeTab === 'ai-insights' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-glass)',
-                      borderColor: activeTab === 'ai-insights' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-border)',
-                      color: activeTab === 'ai-insights' ? 'white' : 'var(--text-secondary)'
-                    }}
-                  >
-                    🧠 洞察
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('knowledge')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 relative overflow-hidden border ${
-                      activeTab === 'knowledge'
-                        ? 'shadow-lg backdrop-blur-md transform scale-105'
-                        : 'hover:opacity-80'
-                    }`}
-                    style={{
-                      backgroundColor: activeTab === 'knowledge' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-glass)',
-                      borderColor: activeTab === 'knowledge' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-border)',
-                      color: activeTab === 'knowledge' ? 'white' : 'var(--text-secondary)'
-                    }}
-                  >
-                    📚 知识库
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('export')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 relative overflow-hidden border ${
-                      activeTab === 'export'
-                        ? 'shadow-lg backdrop-blur-md transform scale-105'
-                        : 'hover:opacity-80'
-                    }`}
-                    style={{
-                      backgroundColor: activeTab === 'export' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-glass)',
-                      borderColor: activeTab === 'export' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-border)',
-                      color: activeTab === 'export' ? 'white' : 'var(--text-secondary)'
-                    }}
-                  >
-                    📊 导出
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('config')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 relative overflow-hidden border ${
-                      activeTab === 'config'
-                        ? 'shadow-lg backdrop-blur-md transform scale-105'
-                        : 'hover:opacity-80'
-                    }`}
-                    style={{
-                      backgroundColor: activeTab === 'config' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-glass)',
-                      borderColor: activeTab === 'config' 
-                        ? 'var(--flow-primary, #0ea5e9)' 
-                        : 'var(--card-border)',
-                      color: activeTab === 'config' ? 'white' : 'var(--text-secondary)'
-                    }}
-                  >
-                    ⚙️ 配置
-                  </button>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <div className="max-w-7xl mx-auto">
-            {/* 记录管理页面 */}
-            {activeTab === 'records' && (
-              <Animated animation="fadeIn" duration={400} className="max-w-6xl mx-auto">
-                {/* 核心功能：快速记录区域（突出显示） */}
-                {!isSearchMode && (
-                  <div className="mb-8">
-                    <div className="rounded-2xl p-6 border-2 border-[var(--flow-primary)]/40 shadow-xl" style={{
-                      background: 'var(--card-glass)',
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.15), 0 0 0 1px var(--flow-primary, #0ea5e9)/20'
-                    }}>
-
-                      <EntryForm />
-                    </div>
-                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="submit"
+                      className="w-full px-4 py-3 text-left text-white hover:bg-white/10 transition-colors duration-200 flex items-center gap-3"
+                    >
+                      <Search className="w-4 h-4" />
+                      <span>搜索 &ldquo;{searchQuery}&rdquo;</span>
+                    </button>
+                    <button
+                      onClick={() => router.push(`/agent?message=${encodeURIComponent(searchQuery)}`)}
+                      className="w-full px-4 py-3 text-left text-white hover:bg-white/10 transition-colors duration-200 flex items-center gap-3"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>与AI对话 &ldquo;{searchQuery}&rdquo;</span>
+                    </button>
+                  </>
                 )}
-
-                {/* 搜索与记录区域 */}
-                <div className="space-y-6">
-                  {/* 次要功能：搜索框区域（简化样式） */}
-                  <div className="rounded-xl p-4 glass-border-soft" style={{
-                    background: 'var(--card-glass)',
-                    backdropFilter: 'blur(10px)'
-                  }}>
-                    <SearchBox 
-                      onSearchResults={handleSearchResults}
-                      onClearSearch={handleClearSearch}
-                    />
-                  </div>
-
-                  {/* 内容显示区域 */}
-                  <div className="rounded-xl p-4 shadow-lg glass-border-soft" style={{
-                    background: 'var(--card-glass)',
-                    backdropFilter: 'blur(15px)'
-                  }}>
-                    {isSearchMode && searchResults ? (
-                      <SearchResults 
-                        results={searchResults}
-                        onEntryDeleted={handleEntryDeleted}
-                      />
-                    ) : (
-                      <EntryList />
-                    )}
-                  </div>
-                </div>
-              </Animated>
+              </div>
             )}
-
-            {/* 待办事项页面 */}
-            {activeTab === 'todo' && (
-              <Animated animation="fadeIn" duration={400}>
-                <TodoApp />
-              </Animated>
-            )}
-
-            {/* AI洞察页面 */}
-            {activeTab === 'insights' && (
-              <Animated animation="fadeIn" duration={400} className="space-y-6">
-                <AIInsights />
-                <Suspense fallback={<LoadingSpinner />}>
-                  <WeeklyReport />
-                </Suspense>
-                {/* <BehaviorInsights /> */}
-                <Suspense fallback={<LoadingSpinner />}>
-                  <UserProfile />
-                </Suspense>
-              </Animated>
-            )}
-
-            {/* 知识库管理页面 */}
-            {activeTab === 'knowledge' && (
-              <Animated animation="fadeIn" duration={400}>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <KnowledgeManager />
-                </Suspense>
-              </Animated>
-            )}
-
-            {/* 数据导出页面 */}
-            {activeTab === 'export' && (
-              <Animated animation="fadeIn" duration={400}>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <DataExport />
-                </Suspense>
-              </Animated>
-            )}
-
-            {/* 配置页面 */}
-            {activeTab === 'config' && (
-              <Animated animation="fadeIn" duration={400} className="space-y-6">
-                {/* 主题选择 */}
-                <div className="rounded-xl p-6 shadow-lg glass-border-soft" style={{
-                  background: 'var(--card-glass)',
-                  backdropFilter: 'blur(15px)'
-                }}>
-                  <ThemeToggle />
-                </div>
-                
-                {/* AI模型配置 */}
-                <div className="rounded-xl p-6 shadow-lg glass-border-soft" style={{
-                  background: 'var(--card-glass)',
-                  backdropFilter: 'blur(15px)'
-                }}>
-                  <AIModelConfig />
-                </div>
-              </Animated>
-            )}
-          </div>
-          
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: 'var(--card-glass)',
-                color: 'var(--text-primary)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid var(--card-border)',
-              },
-            }}
-          />
-          
-          {/* 性能监控 */}
-          <PerformanceMonitor />
-          
-          {/* AI缓存监控 */}
-          <CacheMonitor 
-            isVisible={showCacheMonitor}
-            onToggle={() => setShowCacheMonitor(!showCacheMonitor)}
-          />
+          </form>
         </div>
+
       </div>
+
+      {/* 底部装饰 */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
+    </div>
   );
 }

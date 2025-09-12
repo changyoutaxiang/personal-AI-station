@@ -68,7 +68,6 @@ export function useDataFlow(chatState: ChatState & ChatActions): DataFlowActions
         selectedTemplate: chatState.selectedTemplate,
         searchKeyword: chatState.searchKeyword,
         historyLimit: chatState.historyLimit,
-        sidebarCollapsed: chatState.sidebarCollapsed,
         lastSyncTime: state.lastSyncTime,
       };
       
@@ -98,9 +97,6 @@ export function useDataFlow(chatState: ChatState & ChatActions): DataFlowActions
         }
         if (parsedState.historyLimit) {
           chatState.setHistoryLimit(parsedState.historyLimit);
-        }
-        if (typeof parsedState.sidebarCollapsed === 'boolean') {
-          chatState.setSidebarCollapsed(parsedState.sidebarCollapsed);
         }
         
         state.lastSyncTime = parsedState.lastSyncTime || 0;
