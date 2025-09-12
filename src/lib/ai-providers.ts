@@ -76,63 +76,10 @@ const OPENROUTER_PROVIDER: AIProvider = {
   ]
 };
 
-// 智谱GLM 供应商配置
-const ZHIPU_GLM_PROVIDER: AIProvider = {
-  id: 'zhipu',
-  name: '智谱GLM',
-  description: '智谱AI官方GLM模型服务',
-  apiEndpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-  requiresApiKey: true,
-  apiKeyEnvVar: 'ZHIPU_API_KEY',
-  models: [
-    {
-      id: 'glm-4.5',
-      name: 'GLM-4.5',
-      description: '智谱最新GLM-4.5模型，性能全面升级',
-      maxTokens: 8000,
-      supportsFunctions: true
-    },
-    {
-      id: 'glm-4.5-air',
-      name: 'GLM-4.5 Air',
-      description: '智谱GLM-4.5轻量版本，速度更快',
-      maxTokens: 8000,
-      supportsFunctions: true
-    }
-  ]
-};
 
-// DeepSeek 供应商配置
-const DEEPSEEK_PROVIDER: AIProvider = {
-  id: 'deepseek',
-  name: 'DeepSeek',
-  description: 'DeepSeek官方AI模型服务 - V3.1最新版本',
-  apiEndpoint: 'https://api.deepseek.com/chat/completions',
-  requiresApiKey: true,
-  apiKeyEnvVar: 'DEEPSEEK_API_KEY',
-  models: [
-    {
-      id: 'deepseek-chat',
-      name: 'DeepSeek V3.1 Chat',
-      description: 'DeepSeek V3.1对话模型，支持128K上下文',
-      maxTokens: 128000,
-      supportsFunctions: true
-    },
-    {
-      id: 'deepseek-reasoner',
-      name: 'DeepSeek V3.1 Reasoner',
-      description: 'DeepSeek V3.1推理模型，具备深度思维链能力',
-      maxTokens: 128000,
-      supportsFunctions: true
-    }
-  ]
-};
-
-// 所有可用的AI供应商
+// 简化：只使用OpenRouter作为AI供应商
 export const AI_PROVIDERS: AIProvider[] = [
-  OPENROUTER_PROVIDER,
-  ZHIPU_GLM_PROVIDER,
-  DEEPSEEK_PROVIDER
+  OPENROUTER_PROVIDER
 ];
 
 // 根据供应商ID获取供应商配置
@@ -151,18 +98,18 @@ export function getProviderAndModelById(modelId: string): { provider: AIProvider
   return undefined;
 }
 
-// 获取所有可用模型（扁平化列表，用于向后兼容）
+// 获取所有可用模型（简化显示，不显示供应商名称）
 export function getAllAvailableModels(): Array<{ value: string; label: string; provider: string }> {
   const models: Array<{ value: string; label: string; provider: string }> = [];
   
-  for (const provider of AI_PROVIDERS) {
-    for (const model of provider.models) {
-      models.push({
-        value: model.id,
-        label: `${model.name} (${provider.name})`,
-        provider: provider.id
-      });
-    }
+  // 只有OpenRouter一个供应商，直接显示模型名称
+  const provider = OPENROUTER_PROVIDER;
+  for (const model of provider.models) {
+    models.push({
+      value: model.id,
+      label: model.name, // 简化：不显示供应商名称
+      provider: provider.id
+    });
   }
   
   return models;

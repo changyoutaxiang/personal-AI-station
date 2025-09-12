@@ -4,6 +4,7 @@
  */
 
 import { debug } from './debug';
+import { getAIProvider } from './db';
 
 export interface OpenRouterMessage {
   role: 'system' | 'user' | 'assistant';
@@ -259,8 +260,8 @@ export class OpenRouterClient {
    * 验证模型名称
    */
   static validateModel(model: string): boolean {
-    // 基本的模型名称格式验证
-    const validFormat = /^[a-zA-Z0-9_\-\/]+$/;
+    // 基本的模型名称格式验证（允许字母、数字、下划线、连字符、斜杠和点号）
+    const validFormat = /^[a-zA-Z0-9_\-\/\.]+$/;
     return validFormat.test(model) && model.length > 0 && model.length < 100;
   }
 
@@ -292,10 +293,26 @@ export class OpenRouterClient {
  * 创建默认的OpenRouter客户端实例（支持动态API Key）
  */
 export function createOpenRouterClient(apiKey?: string, options?: OpenRouterOptions): OpenRouterClient {
-  // 优先使用传入的API Key，其次使用环境变量
-  const effectiveApiKey = apiKey || process.env.OPENROUTER_API_KEY;
+  // 优先使用传入的API Key
+  let effectiveApiKey = apiKey;
+  
+  // 如果没有传入API Key，使用统一的获取逻辑
   if (!effectiveApiKey) {
-    throw new Error('API Key未设置：请传入API Key或设置OPENROUTER_API_KEY环境变量');
+    try {
+      const providerConfig = getAIProvider('openrouter');
+      effectiveApiKey = providerConfig?.api_key?.trim() || undefined;
+    } catch (error) {
+      // 静默失败，回退到环境变量
+    }
+    
+    // 最后回退到环境变量
+    if (!effectiveApiKey) {
+      effectiveApiKey = process.env.OPENROUTER_API_KEY;
+    }
+  }
+  
+  if (!effectiveApiKey) {
+    throw new Error('OpenRouter API密钥未配置 - 请在设置页面配置API密钥');
   }
   
   return new OpenRouterClient(effectiveApiKey, options);
@@ -349,9 +366,23 @@ export async function streamChatCompletion(
   onChunk: (chunk: string, done: boolean) => void,
   options?: Partial<OpenRouterRequest & OpenRouterOptions>
 ): Promise<{ totalTokens: number }> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  // 优先从数据库获取 API 密钥，然后回退到环境变量
+  let apiKey: string | undefined;
+  
+  try {
+    const providerConfig = getAIProvider('openrouter');
+    apiKey = providerConfig?.api_key?.trim() || undefined;
+  } catch (error) {
+    // 静默失败，回退到环境变量
+  }
+  
+  // 回退到环境变量
   if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY环境变量未设置');
+    apiKey = process.env.OPENROUTER_API_KEY;
+  }
+  
+  if (!apiKey) {
+    throw new Error('OpenRouter API密钥未配置 - 请在设置页面配置API密钥');
   }
 
   // 验证和清理输入

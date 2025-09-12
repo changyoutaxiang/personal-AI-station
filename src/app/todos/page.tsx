@@ -24,18 +24,18 @@ import '@/styles/todos.css';
 type ViewMode = 'list' | 'calendar' | 'priority' | 'tag';
 
 // 简化的API调用函数
-async function fetchTodos(category: 'today' | 'week'): Promise<Todo[]> {
+async function fetchTodos(category: 'today' | 'week'): Promise<{todos: Todo[], meta?: any}> {
   try {
     const response = await fetch(`/api/todos?category=${category}`);
     const data = await response.json();
     
     if (!data.ok) {
       console.error('API错误:', data.error);
-      return [];
+      return { todos: [] };
     }
     
     // 转换数据格式
-    return data.data.map((rec: any) => {
+    const todos = data.data.map((rec: any) => {
       try {
         const content = rec.content ? JSON.parse(rec.content) : {};
         return {
@@ -56,9 +56,11 @@ async function fetchTodos(category: 'today' | 'week'): Promise<Todo[]> {
         return null;
       }
     }).filter(Boolean);
+    
+    return { todos, meta: data.meta };
   } catch (error) {
     console.error('获取待办事项失败:', error);
-    return [];
+    return { todos: [] };
   }
 }
 
@@ -72,6 +74,7 @@ function TodoPageContent() {
   // 基础状态
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(false);
+  const [todoMeta, setTodoMeta] = useState<any>(null);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'sunset');
   const [activeTab, setActiveTab] = useState<'today' | 'week'>('today');
   const [todayViewMode, setTodayViewMode] = useState<ViewMode>('list');
@@ -124,9 +127,10 @@ function TodoPageContent() {
   const loadTodos = async () => {
     setLoading(true);
     try {
-      const data = await fetchTodos(activeTab);
+      const { todos: data, meta } = await fetchTodos(activeTab);
       setTodos(data);
-      console.log(`✅ 成功加载${activeTab}待办事项:`, data.length, '条');
+      setTodoMeta(meta);
+      console.log(`✅ 成功加载${activeTab}待办事项:`, data.length, '条', meta);
     } catch (error) {
       console.error('加载待办事项失败:', error);
       showError('加载待办事项失败');
@@ -145,7 +149,10 @@ function TodoPageContent() {
     setActiveTab(tab);
     // 延迟加载，确保状态更新完成
     setTimeout(() => {
-      fetchTodos(tab).then(setTodos);
+      fetchTodos(tab).then(({ todos, meta }) => {
+        setTodos(todos);
+        setTodoMeta(meta);
+      });
     }, 100);
   };
   
@@ -432,6 +439,26 @@ function TodoPageContent() {
           
           {/* 标签页切换和控制按钮区域 */}
           <div className="mb-6">
+            {/* 过期任务警告 */}
+            {activeTab === 'today' && todoMeta && todoMeta.overdue > 0 && (
+              <div className="mb-4 mx-auto max-w-2xl">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center space-x-3 animate-pulse">
+                  <div className="flex-shrink-0">
+                    <span className="text-2xl animate-bounce">⚠️</span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-red-800 font-semibold">发现 {todoMeta.overdue} 个过期任务</h4>
+                    <p className="text-red-600 text-sm">这些任务已超过截止日期，建议优先处理以避免影响后续计划。</p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <span className="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-medium">
+                      过期 {todoMeta.overdue}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 标签页切换 */}
             <div className="flex items-center justify-center mb-6">
               <div className="flex space-x-1 bg-white/60 backdrop-blur-sm rounded-xl p-1 border border-purple-200">
@@ -448,6 +475,12 @@ function TodoPageContent() {
                   <span className="bg-purple-200 text-purple-800 text-xs px-2 py-1 rounded-full">
                     {todayTodos.length}
                   </span>
+                  {/* 过期任务提示 */}
+                  {todoMeta && todoMeta.overdue > 0 && (
+                    <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+                      {todoMeta.overdue} 过期
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => handleTabChange('week')}

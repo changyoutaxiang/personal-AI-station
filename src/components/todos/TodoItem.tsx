@@ -30,25 +30,23 @@ export function TodoItem({
   const [newSubTaskText, setNewSubTaskText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
-  // Check if task is overdue (created before today and not completed)
+  // Check if task is overdue (from API data or calculated)
   const isOverdue = () => {
-    if (todo.completed || activeTab !== 'today') return false;
+    if (todo.completed) return false;
     
-    // If task has a due date, check if it's overdue based on due date
+    // Check if task is marked as overdue from API
+    if (todo.tags && todo.tags.includes('overdue')) return true;
+    
+    // Fallback: If task has a due date, check if it's overdue based on due date
     if (todo.dueDate) {
       const today = new Date();
       const dueDate = new Date(todo.dueDate);
-      today.setHours(0, 0, 0, 0);
-      dueDate.setHours(0, 0, 0, 0);
+      today.setHours(23, 59, 59, 999); // End of today
+      dueDate.setHours(23, 59, 59, 999); // End of due date
       return dueDate < today;
     }
     
-    // Fallback: check if task was created before today
-    const today = new Date();
-    const taskDate = new Date(todo.createdAt);
-    today.setHours(0, 0, 0, 0);
-    taskDate.setHours(0, 0, 0, 0);
-    return taskDate < today;
+    return false;
   };
 
   // 今日任务中已完成的任务使用灰色样式
@@ -87,11 +85,19 @@ export function TodoItem({
   };
 
   return (
-    <div className={`bg-white rounded-2xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl border-l-4 ${
+    <div className={`relative bg-white rounded-2xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl border-l-4 ${
       isCompletedTodayTask ? 'border-gray-300 bg-gray-100' : 
-      isOverdueTask ? 'border-red-500 bg-red-50' : 
+      isOverdueTask ? 'border-red-500 bg-red-50 animate-pulse' : 
       'border-purple-400 bg-white'
     } ${todo.completed && activeTab === 'week' ? 'opacity-75' : ''}`}>
+      
+      {/* 过期任务警告标识 */}
+      {isOverdueTask && (
+        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-3 py-1 rounded-full shadow-md flex items-center space-x-1 animate-bounce">
+          <span>⚠️</span>
+          <span>过期</span>
+        </div>
+      )}
       
       {isEditing ? (
         <TodoEditForm 

@@ -3029,3 +3029,103 @@ export function getEnhancedWeeklyReportData(): EnhancedWeeklyData {
     }
   };
 }
+
+// ================ TASKS CRUD OPERATIONS ================
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  project_id: string;
+  status: string;
+  priority: string;
+  estimated_hours: number | null;
+  actual_hours: number | null;
+  due_date: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  assignee: string | null;
+}
+
+/**
+ * 获取所有任务
+ */
+export function getAllTasks(): Task[] {
+  try {
+    const stmt = db.prepare('SELECT * FROM tasks ORDER BY created_at DESC');
+    return stmt.all() as Task[];
+  } catch (error) {
+    console.error('Error fetching all tasks:', error);
+    return [];
+  }
+}
+
+/**
+ * 根据ID获取任务
+ */
+export function getTaskById(id: string): Task | null {
+  try {
+    const stmt = db.prepare('SELECT * FROM tasks WHERE id = ?');
+    return stmt.get(id) as Task | null;
+  } catch (error) {
+    console.error('Error fetching task by ID:', error);
+    return null;
+  }
+}
+
+/**
+ * 获取过期未完成的任务
+ */
+export function getOverdueTasks(): Task[] {
+  try {
+    const now = new Date().toISOString();
+    const stmt = db.prepare(`
+      SELECT * FROM tasks 
+      WHERE due_date < ? 
+      AND status != 'done' 
+      AND completed_at IS NULL
+      ORDER BY due_date ASC
+    `);
+    return stmt.all(now) as Task[];
+  } catch (error) {
+    console.error('Error fetching overdue tasks:', error);
+    return [];
+  }
+}
+
+/**
+ * 获取今日任务（包含过期任务）
+ */
+export function getTodayTasks(): Task[] {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const stmt = db.prepare(`
+      SELECT * FROM tasks 
+      WHERE DATE(due_date) = ? OR due_date IS NULL
+      ORDER BY priority DESC, created_at DESC
+    `);
+    return stmt.all(today) as Task[];
+  } catch (error) {
+    console.error('Error fetching today tasks:', error);
+    return [];
+  }
+}
+
+/**
+ * 更新任务状态
+ */
+export function updateTaskStatus(id: string, status: string, completed_at?: string): boolean {
+  try {
+    const stmt = db.prepare(`
+      UPDATE tasks 
+      SET status = ?, completed_at = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    const result = stmt.run(status, completed_at || null, id);
+    return result.changes > 0;
+  } catch (error) {
+    console.error('Error updating task status:', error);
+    return false;
+  }
+}

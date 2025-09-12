@@ -2,16 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { AI_PROVIDERS, getProviderById } from '@/lib/ai-providers';
-
-interface AIModelConfig {
-  id: number;
-  function_name: string;
-  model_name: string;
-  description?: string;
-  created_at: string;
-  updated_at: string;
-}
+import { Key, Save, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface AIProviderConfig {
   id: number;
@@ -25,351 +16,179 @@ interface AIProviderConfig {
 }
 
 const AIProviderConfig = () => {
-  const [modelConfigs, setModelConfigs] = useState<AIModelConfig[]>([]);
-  const [providerConfigs, setProviderConfigs] = useState<AIProviderConfig[]>([]);
+  const [openrouterConfig, setOpenrouterConfig] = useState<AIProviderConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [updating, setUpdating] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'models' | 'providers'>('models');
-  const [selectedProvider, setSelectedProvider] = useState<string>('openrouter');
-  const [editingProvider, setEditingProvider] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{api_key: string; api_endpoint: string}>({api_key: '', api_endpoint: ''});
+  const [updating, setUpdating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [apiKey, setApiKey] = useState<string>('');
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchConfigs = async () => {
+    const fetchOpenRouterConfig = async () => {
       try {
-        const [modelsResponse, providersResponse] = await Promise.all([
-          axios.get('/api/models'),
-          axios.get('/api/providers')
-        ]);
-        setModelConfigs(modelsResponse.data);
-        setProviderConfigs(providersResponse.data);
+        const response = await axios.get('/api/providers');
+        const providers = response.data;
+        const openrouterProvider = providers.find((p: AIProviderConfig) => p.provider_id === 'openrouter');
+        
+        if (openrouterProvider) {
+          setOpenrouterConfig(openrouterProvider);
+          setApiKey(openrouterProvider.api_key || '');
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch configs');
+        setError(err instanceof Error ? err.message : '获取OpenRouter配置失败');
       } finally {
         setLoading(false);
       }
     };
-    fetchConfigs();
+
+    fetchOpenRouterConfig();
   }, []);
 
-  const handleModelUpdate = async (functionName: string, newModel: string) => {
-    if (!newModel || newModel === modelConfigs.find(c => c.function_name === functionName)?.model_name) return;
+  const handleSave = async () => {
+    if (!openrouterConfig || !apiKey.trim()) return;
     
-    setUpdating(functionName);
+    setUpdating(true);
+    setError(null);
+    setSuccess(null);
+    
     try {
-      await axios.put(`/api/models/${functionName}`, { model: newModel });
-      setModelConfigs(modelConfigs.map(config => 
-        config.function_name === functionName 
-          ? { ...config, model_name: newModel, updated_at: new Date().toISOString() } 
-          : config
-      ));
+      await axios.put(`/api/providers/${openrouterConfig.id}`, {
+        api_key: apiKey.trim()
+      });
+      
+      setOpenrouterConfig({
+        ...openrouterConfig,
+        api_key: apiKey.trim()
+      });
+      
+      setIsEditing(false);
+      setSuccess('OpenRouter API 密钥已更新');
+      
+      // 3秒后清除成功消息
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update model');
+      setError(err instanceof Error ? err.message : '更新API密钥失败');
     } finally {
-      setUpdating(null);
+      setUpdating(false);
     }
   };
 
-  const handleProviderUpdate = async (providerId: string, updates: Partial<AIProviderConfig>) => {
-    setUpdating(providerId);
-    try {
-      await axios.put(`/api/providers/${providerId}`, updates);
-      setProviderConfigs(providerConfigs.map(config => 
-        config.provider_id === providerId 
-          ? { ...config, ...updates, updated_at: new Date().toISOString() } 
-          : config
-      ));
-      // 关闭编辑模式
-      setEditingProvider(null);
-      setEditForm({api_key: '', api_endpoint: ''});
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update provider');
-    } finally {
-      setUpdating(null);
-    }
+  const handleCancel = () => {
+    setApiKey(openrouterConfig?.api_key || '');
+    setIsEditing(false);
+    setError(null);
   };
 
-  const handleEditProvider = (config: AIProviderConfig) => {
-    setEditingProvider(config.provider_id);
-    setEditForm({
-      api_key: config.api_key || '',
-      api_endpoint: config.api_endpoint || ''
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingProvider(null);
-    setEditForm({api_key: '', api_endpoint: ''});
-  };
-
-  const handleSaveEdit = (providerId: string) => {
-    handleProviderUpdate(providerId, {
-      api_key: editForm.api_key,
-      api_endpoint: editForm.api_endpoint
-    });
-  };
-
-  const getModelLabel = (modelValue: string) => {
-    // 从所有供应商中查找模型
-    for (const provider of AI_PROVIDERS) {
-      const model = provider.models.find(m => m.id === modelValue);
-      if (model) return model.name;
-    }
-    return modelValue;
-  };
-
-  const getProviderForModel = (modelValue: string) => {
-    for (const provider of AI_PROVIDERS) {
-      if (provider.models.some(m => m.id === modelValue)) {
-        return provider;
-      }
-    }
-    return null;
-  };
-
-  const getAvailableModels = () => {
-    const provider = getProviderById(selectedProvider);
-    return provider ? provider.models : [];
-  };
-
-  if (loading) return <div className="p-4">Loading AI configurations...</div>;
-  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <span className="ml-3 text-gray-600">加载配置中...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <span className="text-2xl">⚙️</span>
-        <h2 className="text-2xl font-semibold text-neutral-800">AI配置管理</h2>
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="flex items-center space-x-3 mb-6">
+        <Key className="w-6 h-6 text-blue-500" />
+        <h3 className="text-lg font-semibold text-gray-800">OpenRouter API 配置</h3>
       </div>
 
-      {/* 标签页导航 */}
-      <div className="flex border-b border-gray-200 mb-6">
-        <button
-          onClick={() => setActiveTab('models')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'models'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          模型配置
-        </button>
-        <button
-          onClick={() => setActiveTab('providers')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'providers'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          供应商配置
-        </button>
+      <div className="space-y-4">
+        {/* API 密钥配置 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            API 密钥
+          </label>
+          <div className="flex space-x-3">
+            <input
+              type={isEditing ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              disabled={!isEditing}
+              placeholder="请输入 OpenRouter API 密钥 (sk-or-v1-...)"
+              className={`flex-1 px-4 py-2 border rounded-lg transition-colors ${
+                isEditing 
+                  ? 'border-blue-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500' 
+                  : 'border-gray-300 bg-gray-50'
+              } disabled:cursor-not-allowed`}
+            />
+            
+            {!isEditing ? (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                编辑
+              </button>
+            ) : (
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleSave}
+                  disabled={updating || !apiKey.trim()}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-1"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{updating ? '保存中...' : '保存'}</span>
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={updating}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 transition-colors"
+                >
+                  取消
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 状态显示 */}
+        <div className="flex items-center space-x-2 text-sm">
+          <span className="text-gray-600">状态:</span>
+          {openrouterConfig?.is_enabled ? (
+            <span className="text-green-600 flex items-center space-x-1">
+              <CheckCircle className="w-4 h-4" />
+              <span>已启用</span>
+            </span>
+          ) : (
+            <span className="text-red-600 flex items-center space-x-1">
+              <AlertCircle className="w-4 h-4" />
+              <span>未启用</span>
+            </span>
+          )}
+        </div>
+
+        {/* 错误和成功消息 */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-red-500" />
+            <span className="text-red-700 text-sm">{error}</span>
+          </div>
+        )}
+        
+        {success && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center space-x-2">
+            <CheckCircle className="w-4 h-4 text-green-500" />
+            <span className="text-green-700 text-sm">{success}</span>
+          </div>
+        )}
+
+        {/* 说明文档 */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 className="font-medium text-blue-800 mb-2">OpenRouter API 密钥说明</h4>
+          <ul className="text-sm text-blue-700 space-y-1">
+            <li>• 访问 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">OpenRouter Keys 页面</a> 获取API密钥</li>
+            <li>• API密钥格式：sk-or-v1-...</li>
+            <li>• OpenRouter 提供超过100个AI模型的统一接口</li>
+            <li>• 配置后即可使用所有支持的模型进行对话</li>
+          </ul>
+        </div>
       </div>
-
-      {activeTab === 'models' && (
-        <div className="space-y-6">
-          {/* 供应商选择器 */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              选择供应商查看可用模型:
-            </label>
-            <select
-              value={selectedProvider}
-              onChange={(e) => setSelectedProvider(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {AI_PROVIDERS.map(provider => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 模型配置列表 */}
-          {modelConfigs.map(config => {
-            const currentProvider = getProviderForModel(config.model_name);
-            return (
-              <div key={config.id} className="border border-gray-200 p-6 rounded-lg shadow-sm">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold mb-2">
-                      {config.function_name.replace(/_/g, ' ').toUpperCase()}
-                    </h3>
-                    <p className="text-gray-600 mb-3">{config.description}</p>
-                    <div className="flex flex-col gap-2">
-                      <div className="text-sm">
-                        <span className="font-medium">当前模型: </span>
-                        <span className="font-mono bg-blue-100 px-2 py-1 rounded text-blue-800">
-                          {getModelLabel(config.model_name)}
-                        </span>
-                        {currentProvider && (
-                          <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
-                            {currentProvider.name}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        最后更新: {new Date(config.updated_at).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-medium text-gray-700">
-                        选择模型:
-                      </label>
-                      <select 
-                        value={config.model_name}
-                        onChange={(e) => handleModelUpdate(config.function_name, e.target.value)}
-                        disabled={updating === config.function_name}
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                      >
-                        {getAvailableModels().map(model => (
-                          <option key={model.id} value={model.id}>
-                            {model.name}
-                          </option>
-                        ))}
-                      </select>
-                      {updating === config.function_name && (
-                        <div className="text-xs text-blue-600">更新中...</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* 可用模型展示 */}
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold mb-2">
-              {getProviderById(selectedProvider)?.name} 可用模型:
-            </h3>
-            <div className="grid grid-cols-1 gap-2 text-sm">
-              {getAvailableModels().map(model => (
-                <div key={model.id} className="flex justify-between items-center p-2 bg-white rounded border">
-                  <span className="font-medium">{model.name}</span>
-                  <code className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                    {model.id}
-                  </code>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'providers' && (
-        <div className="space-y-6">
-          {providerConfigs.map(config => (
-            <div key={config.id} className="border border-gray-200 p-6 rounded-lg shadow-sm">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-3">
-                    <h3 className="text-lg font-bold">{config.provider_name}</h3>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      config.is_enabled 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {config.is_enabled ? '已启用' : '已禁用'}
-                    </span>
-                  </div>
-                  {editingProvider === config.provider_id ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          API端点:
-                        </label>
-                        <input
-                          type="text"
-                          value={editForm.api_endpoint}
-                          onChange={(e) => setEditForm({...editForm, api_endpoint: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="输入API端点URL"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          API密钥:
-                        </label>
-                        <input
-                          type="password"
-                          value={editForm.api_key}
-                          onChange={(e) => setEditForm({...editForm, api_key: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="输入API密钥"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleSaveEdit(config.provider_id)}
-                          disabled={updating === config.provider_id}
-                          className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50"
-                        >
-                          保存
-                        </button>
-                        <button
-                          onClick={handleCancelEdit}
-                          className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400"
-                        >
-                          取消
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="font-medium">API端点: </span>
-                        <code className="bg-gray-100 px-2 py-1 rounded text-xs">
-                          {config.api_endpoint || '未配置'}
-                        </code>
-                      </div>
-                      <div>
-                        <span className="font-medium">API密钥: </span>
-                        <span className="text-gray-600">
-                          {config.api_key ? '已配置' : '未配置'}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        最后更新: {config.updated_at ? new Date(config.updated_at).toLocaleString() : '未知'}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="ml-4 space-y-2">
-                  {editingProvider !== config.provider_id && (
-                    <>
-                      <button
-                        onClick={() => handleEditProvider(config)}
-                        className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200 transition-colors"
-                      >
-                        配置
-                      </button>
-                      <button
-                        onClick={() => handleProviderUpdate(config.provider_id, { is_enabled: !config.is_enabled })}
-                        disabled={updating === config.provider_id}
-                        className={`px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50 ${
-                          config.is_enabled
-                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                            : 'bg-green-100 text-green-700 hover:bg-green-200'
-                        }`}
-                      >
-                        {config.is_enabled ? '禁用' : '启用'}
-                      </button>
-                    </>
-                  )}
-                  {updating === config.provider_id && (
-                    <div className="text-xs text-blue-600">更新中...</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
