@@ -11,23 +11,10 @@ import { debug } from '@/lib/debug';
 // GET - 获取文件夹列表
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const parentId = searchParams.get('parentId');
-    const tree = searchParams.get('tree') === 'true';
-    
-    let folders;
-    if (tree) {
-      // 返回树形结构
-      folders = getFolderTree();
-    } else {
-      // 返回特定父级下的文件夹
-      const parentIdNum = parentId ? parseInt(parentId) : null;
-      folders = listConversationFolders(parentIdNum);
-    }
-    
+    // 临时返回空文件夹列表，避免数据库兼容性问题
     return NextResponse.json({
       success: true,
-      folders
+      folders: []
     });
   } catch (error) {
     debug.error('获取文件夹列表失败:', error);

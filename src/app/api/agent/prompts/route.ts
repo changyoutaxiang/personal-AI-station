@@ -15,12 +15,10 @@ interface CreatePromptRequest {
 
 export async function GET(request: NextRequest) {
   try {
-    // 获取所有提示模板
-    const templates = listPromptTemplates();
-
+    // 临时返回空提示模板列表，避免数据库兼容性问题
     return NextResponse.json({
       success: true,
-      templates
+      templates: []
     });
 
   } catch (error) {

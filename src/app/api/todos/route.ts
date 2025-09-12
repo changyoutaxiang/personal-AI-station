@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
 import { database } from '@/lib/database';
-import { initDatabase, listTodos, createTodoFromObject } from '@/lib/db';
-
-// 确保数据库初始化（SQLite兼容性）
-if (process.env.DATABASE_TYPE !== 'supabase') {
-  initDatabase();
-}
 
 // GET /api/todos?category=today|week
 export async function GET(req: Request) {
@@ -13,9 +7,11 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const category = searchParams.get('category') || undefined;
 
-    const items = listTodos({ category });
-    return NextResponse.json({ ok: true, data: items });
+    // 使用统一数据库接口
+    const tasks = await database.getTasks();
+    return NextResponse.json({ ok: true, data: tasks });
   } catch (err: any) {
+    console.error('Todos API Error:', err);
     return NextResponse.json({ ok: false, error: err?.message || '服务器错误' }, { status: 500 });
   }
 }
@@ -27,9 +23,25 @@ export async function POST(req: Request) {
     if (!body || typeof body.text !== 'string' || body.text.trim().length === 0) {
       return NextResponse.json({ ok: false, error: 'text 为必填字段' }, { status: 400 });
     }
-    const created = createTodoFromObject(body);
+    
+    // 使用统一数据库接口创建任务
+    const taskData = {
+      id: Date.now().toString(),
+      title: body.text,
+      description: body.description || '',
+      status: 'pending' as const,
+      priority: body.priority || 'medium' as const,
+      estimated_hours: body.estimated_hours || null,
+      actual_hours: null,
+      due_date: body.due_date || null,
+      completed_at: null,
+      assignee: body.assignee || null
+    };
+    
+    const created = await database.createTask(taskData);
     return NextResponse.json({ ok: true, data: created });
   } catch (err: any) {
+    console.error('Create Todo Error:', err);
     return NextResponse.json({ ok: false, error: err?.message || '服务器错误' }, { status: 500 });
   }
 }

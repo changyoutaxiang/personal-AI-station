@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent as serverTrackEvent } from '@/lib/behavior-tracker';
 import { debug } from '@/lib/debug';
 
+export async function GET() {
+  return NextResponse.json({ message: 'Tracking API - use POST method' }, { status: 200 });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { type, data } = await request.json();
