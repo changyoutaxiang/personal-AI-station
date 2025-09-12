@@ -146,10 +146,10 @@ export default function HomePage() {
         {/* 移动端：汉堡菜单 */}
         <div className="md:hidden">
           <button 
-            className="group relative p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-300"
+            className="group relative p-3 rounded-xl bg-black/30 backdrop-blur-md border-2 border-white/50 hover:bg-black/50 hover:border-white/80 transition-all duration-300 shadow-lg"
             onClick={() => setShowMobileMenu(!showMobileMenu)}
           >
-            {showMobileMenu ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-white" />}
+            {showMobileMenu ? <X className="w-6 h-6 text-white drop-shadow-lg" /> : <Menu className="w-6 h-6 text-white drop-shadow-lg" />}
           </button>
         </div>
         
