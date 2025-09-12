@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageCircle, CheckSquare, Brain, Settings, BarChart3, Code, FolderKanban, Timer, Search } from 'lucide-react';
+import { MessageCircle, CheckSquare, Brain, Settings, BarChart3, Code, FolderKanban, Timer, Search, Menu, X } from 'lucide-react';
 import SearchComponent from '@/components/ui/animated-glowing-search-bar';
 import ThemeController from '@/components/ThemeController';
 import { PomodoroTimer } from '@/components/todos/PomodoroTimer';
@@ -14,6 +14,7 @@ import { Theme } from '@/types/todo';
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showPomodoro, setShowPomodoro] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'sunset');
   const router = useRouter();
 
@@ -146,9 +147,9 @@ export default function HomePage() {
         <div className="md:hidden">
           <button 
             className="group relative p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-300"
-            onClick={() => setShowPomodoro(!showPomodoro)}
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
           >
-            <Settings className="w-5 h-5 text-white" />
+            {showMobileMenu ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-white" />}
           </button>
         </div>
         
@@ -178,6 +179,39 @@ export default function HomePage() {
           })}
         </div>
       </nav>
+
+      {/* 移动端导航菜单 */}
+      {showMobileMenu && (
+        <div className="md:hidden fixed top-16 right-4 z-30 bg-white/95 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl p-4 min-w-[200px]">
+          <div className="grid grid-cols-2 gap-3">
+            {/* 背景图切换按钮 */}
+            <div className="col-span-2 mb-2">
+              <ThemeController mode="compact" showBackgroundSwitcher={true} iconColor="black" />
+            </div>
+            
+            {navigationItems.map((item) => {
+              const IconComponent = item.icon;
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => {
+                    if (item.onClick) {
+                      item.onClick();
+                    } else {
+                      router.push(item.href);
+                    }
+                    setShowMobileMenu(false);
+                  }}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-gray-100 transition-all duration-200 ${item.label === '番茄钟' && showPomodoro ? 'bg-gray-100' : ''}`}
+                >
+                  <IconComponent className="w-5 h-5 text-gray-700" />
+                  <span className="text-xs text-gray-600 font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 番茄钟组件 - 响应式位置 */}
       <div className="absolute top-16 right-4 md:top-20 md:right-6 z-30">
