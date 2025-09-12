@@ -78,13 +78,13 @@ export function PomodoroTimer({ isVisible, onToggle }: PomodoroTimerProps) {
           </div>
         )}
 
-        {/* 退出全屏按钮 */}
+        {/* 退出全屏按钮 - 响应式位置 */}
         <button
           onClick={() => setIsFullscreen(false)}
-          className="absolute top-20 right-6 z-20 w-12 h-12 bg-white/20 backdrop-blur-sm text-white rounded-full transition-all duration-300 transform hover:scale-110 hover:bg-white/30 shadow-2xl flex items-center justify-center"
+          className="absolute top-16 right-4 md:top-20 md:right-6 z-20 w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-sm text-white rounded-full transition-all duration-300 transform hover:scale-110 hover:bg-white/30 shadow-2xl flex items-center justify-center"
           title="退出全屏 (ESC)"
         >
-          <X className="w-6 h-6" />
+          <X className="w-5 h-5 md:w-6 md:h-6" />
         </button>
 
         {/* 主要内容 */}
@@ -97,15 +97,15 @@ export function PomodoroTimer({ isVisible, onToggle }: PomodoroTimerProps) {
             </div>
           </div>
 
-          {/* 超大时间显示 */}
-          <div className="mb-12">
-            <div className="text-9xl font-mono font-bold mb-4 text-white drop-shadow-2xl" style={{ textShadow: '0 0 20px rgba(0,0,0,0.5), 0 0 40px rgba(0,0,0,0.3)' }}>
+          {/* 超大时间显示 - 响应式优化 */}
+          <div className="mb-8 md:mb-12 px-4">
+            <div className="text-5xl sm:text-7xl md:text-9xl font-mono font-bold mb-4 text-white drop-shadow-2xl" style={{ textShadow: '0 0 20px rgba(0,0,0,0.5), 0 0 40px rgba(0,0,0,0.3)' }}>
                {formatTime()}
              </div>
             
-            {/* 进度条 */}
+            {/* 进度条 - 响应式宽度 */}
             {config.showProgress && (
-              <div className="w-96 h-3 bg-white/20 rounded-full mx-auto mb-8 overflow-hidden">
+              <div className="w-72 sm:w-80 md:w-96 h-3 bg-white/20 rounded-full mx-auto mb-6 md:mb-8 overflow-hidden">
                 <div 
                   className={`h-full bg-gradient-to-r ${colors.primary} rounded-full transition-all duration-1000 ease-out`}
                   style={{ 
@@ -116,22 +116,22 @@ export function PomodoroTimer({ isVisible, onToggle }: PomodoroTimerProps) {
             )}
           </div>
 
-          {/* 控制按钮 */}
-          <div className="flex justify-center space-x-8">
+          {/* 控制按钮 - 响应式优化 */}
+          <div className="flex justify-center space-x-4 md:space-x-8 px-4">
             <button
               onClick={isActive ? pause : start}
-              className={`flex items-center space-x-3 px-12 py-6 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white rounded-2xl font-bold text-xl transition-all duration-300 transform hover:scale-110 shadow-2xl`}
+              className={`flex items-center space-x-2 md:space-x-3 px-6 py-4 md:px-12 md:py-6 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white rounded-2xl font-bold text-lg md:text-xl transition-all duration-300 transform hover:scale-110 shadow-2xl`}
             >
-              {isActive ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
-              <span>{isActive ? '暂停' : '开始'}</span>
+              {isActive ? <Pause className="w-6 h-6 md:w-8 md:h-8" /> : <Play className="w-6 h-6 md:w-8 md:h-8" />}
+              <span className="hidden sm:inline">{isActive ? '暂停' : '开始'}</span>
             </button>
             
             <button
               onClick={reset}
-              className={`flex items-center space-x-3 px-12 py-6 bg-black/10 backdrop-blur-sm text-white rounded-2xl font-bold text-xl transition-all duration-300 transform hover:scale-110 hover:bg-black/20 shadow-2xl`}
+              className={`flex items-center space-x-2 md:space-x-3 px-6 py-4 md:px-12 md:py-6 bg-black/10 backdrop-blur-sm text-white rounded-2xl font-bold text-lg md:text-xl transition-all duration-300 transform hover:scale-110 hover:bg-black/20 shadow-2xl`}
             >
-              <RotateCcw className="w-8 h-8" />
-              <span>重置</span>
+              <RotateCcw className="w-6 h-6 md:w-8 md:h-8" />
+              <span className="hidden sm:inline">重置</span>
             </button>
           </div>
 
@@ -141,9 +141,9 @@ export function PomodoroTimer({ isVisible, onToggle }: PomodoroTimerProps) {
     );
   }
 
-  // 普通浮动窗口模式
+  // 普通浮动窗口模式 - 响应式优化
   return (
-    <div className="fixed top-6 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl shadow-2xl p-6 w-80 z-50">
+    <div className="fixed top-4 md:top-6 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl shadow-2xl p-4 md:p-6 w-72 md:w-80 z-50 mx-4">
       <div className="text-center">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800">
@@ -170,21 +170,21 @@ export function PomodoroTimer({ isVisible, onToggle }: PomodoroTimerProps) {
            {formatTime()}
          </div>
 
-        <div className="flex justify-center space-x-4 mb-4">
+        <div className="flex justify-center space-x-3 md:space-x-4 mb-4">
           <button
             onClick={isActive ? pause : start}
-            className={`flex items-center space-x-2 px-6 py-3 bg-gradient-to-r ${colors.primary} text-white rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg`}
+            className={`flex items-center space-x-1 md:space-x-2 px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r ${colors.primary} text-white rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg text-sm md:text-base`}
           >
-            {isActive ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-            <span>{isActive ? '暂停' : '开始'}</span>
+            {isActive ? <Pause className="w-4 h-4 md:w-5 md:h-5" /> : <Play className="w-4 h-4 md:w-5 md:h-5" />}
+            <span className="hidden sm:inline">{isActive ? '暂停' : '开始'}</span>
           </button>
           
           <button
             onClick={reset}
-            className="flex items-center space-x-2 px-6 py-3 border-2 border-gray-200 text-gray-600 rounded-xl font-medium transition-all duration-200 hover:border-gray-300"
+            className="flex items-center space-x-1 md:space-x-2 px-4 md:px-6 py-2 md:py-3 border-2 border-gray-200 text-gray-600 rounded-xl font-medium transition-all duration-200 hover:border-gray-300 text-sm md:text-base"
           >
-            <RotateCcw className="w-5 h-5" />
-            <span>重置</span>
+            <RotateCcw className="w-4 h-4 md:w-5 md:h-5" />
+            <span className="hidden sm:inline">重置</span>
           </button>
         </div>
 

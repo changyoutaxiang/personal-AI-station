@@ -160,9 +160,26 @@ function RecordsPageContent() {
           <div className="absolute bottom-20 right-20 w-12 h-12 bg-white rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
         </div>
 
-        {/* 右上角导航 */}
-        <nav className="absolute top-6 right-6 z-20">
-          <div className="flex gap-3">
+        {/* 右上角导航 - 响应式优化 */}
+        <nav className="absolute top-4 right-4 md:top-6 md:right-6 z-20">
+          {/* 移动端：简化导航 */}
+          <div className="md:hidden">
+            <button 
+              className={`group relative p-3 rounded-xl backdrop-blur-md border transition-all duration-300`}
+              style={{
+                backgroundColor: 'var(--card-glass)',
+                borderColor: 'var(--card-border)',
+                color: 'var(--text-primary)'
+              }}
+              onClick={() => setShowPomodoro(!showPomodoro)}
+              title="更多功能"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
+          
+          {/* 桌面端：完整导航 */}
+          <div className="hidden md:flex gap-3">
             {navigationItems.map((item) => {
               const IconComponent = item.icon;
               return (
@@ -195,7 +212,7 @@ function RecordsPageContent() {
           </div>
         </nav>
         
-        <div className="max-w-7xl mx-auto px-2 pt-20 pb-6 relative z-10">
+        <div className="max-w-7xl mx-auto px-3 md:px-2 pt-16 md:pt-20 pb-6 relative z-10">
           <header className="mb-8">
             {/* 全局返回按钮已覆盖，无需局部按钮 */}
             {/* 页面标题 - 已移除“数字大脑”以保持极简风格 */}
@@ -212,17 +229,17 @@ function RecordsPageContent() {
             {/* 记录管理页面 */}
             {activeTab === HomeTabs.RECORDS && (
               <Animated animation="fadeIn" duration={400} className="max-w-6xl mx-auto">
-                {/* 核心功能：快速记录区域（突出显示） */}
+                {/* 核心功能：快速记录区域（突出显示） - 响应式优化 */}
                 {!isSearchMode && (
-                  <div className="mb-8">
-                    {/* Slogan */}
-                    <div className="text-center mb-10">
-                      <h2 className="text-5xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                  <div className="mb-6 md:mb-8">
+                    {/* Slogan - 响应式字号 */}
+                    <div className="text-center mb-8 md:mb-10 px-2">
+                      <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 leading-tight" style={{ color: 'var(--text-primary)' }}>
                         May the <span className="bg-gradient-to-r from-[var(--flow-primary)] to-[var(--flow-secondary)] bg-clip-text text-transparent">AI</span> be with you
                       </h2>
                     </div>
                     
-                    <div className="rounded-2xl p-6 border-2 border-[var(--flow-primary)]/40 shadow-xl" style={{
+                    <div className="rounded-2xl p-4 md:p-6 border-2 border-[var(--flow-primary)]/40 shadow-xl" style={{
                       background: 'var(--card-glass)',
                       boxShadow: '0 8px 32px rgba(0,0,0,0.15), 0 0 0 1px var(--flow-primary, #0ea5e9)/20'
                     }}>

@@ -189,8 +189,8 @@ export default function EntryForm({ initialContent = '' }: EntryFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4" data-entry-form>
       {/* 第一层：核心输入区（平衡模式：始终可见，简化设计） */}
       <div className="space-y-4">
-        {/* 输入区域和AI按钮的横向布局 */}
-        <div className="flex gap-4">
+        {/* 输入区域和AI按钮的响应式布局 */}
+        <div className="flex flex-col md:flex-row gap-4">
           {/* 文本输入区域 */}
           <div className="flex-1 relative">
             <textarea
@@ -207,7 +207,7 @@ export default function EntryForm({ initialContent = '' }: EntryFormProps) {
                 }
               }}
               placeholder="记录你的想法... (Ctrl+Enter 快速保存)"
-              className="w-full h-56 p-4 border rounded-xl resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50 focus:border-[var(--flow-primary)]/50"
+              className="w-full h-40 md:h-56 p-3 md:p-4 border rounded-xl resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--flow-primary)]/50 focus:border-[var(--flow-primary)]/50 text-sm md:text-base"
               style={{
                 backgroundColor: 'var(--card-glass, rgba(255, 255, 255, 0.1))',
                 borderColor: 'var(--card-border, rgba(255, 255, 255, 0.2))',
@@ -223,13 +223,13 @@ export default function EntryForm({ initialContent = '' }: EntryFormProps) {
             </div>
           </div>
 
-          {/* AI功能按钮区域（纵向排列） */}
-          <div className="flex flex-col gap-3 justify-start pt-2">
+          {/* AI功能按钮区域（响应式排列） */}
+          <div className="flex flex-row md:flex-col gap-3 justify-center md:justify-start pt-2">
             {/* 文本润色 */}
             <button
               onClick={handlePolish}
               disabled={isPolishing || !content.trim() || content.length > 500}
-              className={`group relative w-12 h-12 rounded-full flex items-center justify-center font-medium transition-all duration-300 shadow-sm border-2 ${
+              className={`group relative w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-medium transition-all duration-300 shadow-sm border-2 ${
                 isPolishing 
                   ? 'bg-gray-100/80 text-gray-400 cursor-not-allowed shadow-none border-gray-200' 
                   : 'bg-gradient-to-br from-purple-500/10 to-purple-600/5 text-purple-600 border-purple-200/50 hover:from-purple-500/20 hover:to-purple-600/15 hover:border-purple-300/70 hover:shadow-lg hover:shadow-purple-500/20 hover:-translate-y-0.5 active:translate-y-0 hover:scale-105'
@@ -261,7 +261,7 @@ export default function EntryForm({ initialContent = '' }: EntryFormProps) {
                 }
               }}
               disabled={!content.trim() || content.trim().length < 10}
-              className={`group relative w-12 h-12 rounded-full flex items-center justify-center font-medium transition-all duration-300 shadow-sm border-2 ${
+              className={`group relative w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-medium transition-all duration-300 shadow-sm border-2 ${
                 !content.trim() || content.trim().length < 10
                   ? 'bg-gray-100/80 text-gray-400 cursor-not-allowed shadow-none border-gray-200' 
                   : 'bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 text-emerald-600 border-emerald-200/50 hover:from-emerald-500/20 hover:to-emerald-600/15 hover:border-emerald-300/70 hover:shadow-lg hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0 hover:scale-105'

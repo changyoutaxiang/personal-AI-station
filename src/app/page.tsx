@@ -140,9 +140,20 @@ export default function HomePage() {
       >
       </div>
 
-      {/* 右上角导航 */}
-      <nav className="absolute top-6 right-6 z-20">
-        <div className="flex gap-3">
+      {/* 右上角导航 - 响应式优化 */}
+      <nav className="absolute top-4 right-4 md:top-6 md:right-6 z-20">
+        {/* 移动端：汉堡菜单 */}
+        <div className="md:hidden">
+          <button 
+            className="group relative p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-300"
+            onClick={() => setShowPomodoro(!showPomodoro)}
+          >
+            <Settings className="w-5 h-5 text-white" />
+          </button>
+        </div>
+        
+        {/* 桌面端：完整导航 */}
+        <div className="hidden md:flex gap-3">
           {/* 背景图切换按钮 */}
           <ThemeController mode="compact" showBackgroundSwitcher={true} iconColor="white" />
           {navigationItems.map((item) => {
@@ -168,24 +179,24 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* 番茄钟组件 */}
-      <div className="absolute top-20 right-6 z-30">
+      {/* 番茄钟组件 - 响应式位置 */}
+      <div className="absolute top-16 right-4 md:top-20 md:right-6 z-30">
         <ThemeProvider theme={theme} setTheme={setTheme}>
           <PomodoroTimer isVisible={showPomodoro} onToggle={() => setShowPomodoro(!showPomodoro)} />
         </ThemeProvider>
       </div>
 
-      {/* 主要内容 */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 -mt-16">
-        {/* Slogan */}
-        <div className="text-center mb-5 w-full" style={{ maxWidth: "calc(100% - 2rem)" }}>
-          <h1 className="text-6xl md:text-7xl font-bold text-white mb-4 tracking-tight">
+      {/* 主要内容 - 响应式优化 */}
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 md:px-6 -mt-16">
+        {/* Slogan - 响应式字号调整 */}
+        <div className="text-center mb-6 md:mb-5 w-full" style={{ maxWidth: "calc(100% - 2rem)" }}>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 tracking-tight leading-tight">
             May the <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">AI</span> be with you
           </h1>
         </div>
 
-        {/* 搜索对话框 */}
-        <div className="w-full max-w-3xl mx-auto px-[5px]">
+        {/* 搜索对话框 - 响应式边距 */}
+        <div className="w-full max-w-3xl mx-auto px-2 md:px-[5px]">
           <form onSubmit={handleSearch} className="relative">
             <div className="relative">
               <SearchComponent 
@@ -195,33 +206,33 @@ export default function HomePage() {
               />
             </div>
             
-            {/* 搜索建议 */}
+            {/* 搜索建议 - 响应式优化 */}
             {searchQuery && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white/3 backdrop-blur-none border-2 border-white/30 rounded-xl overflow-hidden shadow-lg shadow-white/10">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white/3 backdrop-blur-none border-2 border-white/30 rounded-xl overflow-hidden shadow-lg shadow-white/10 mx-2 md:mx-0">
                 {/* 如果检测到HTML代码，显示特殊提示 */}
                 {isHtmlCode(searchQuery) ? (
                   <button
                     type="submit"
-                    className="w-full px-4 py-3 text-left text-white hover:bg-white/10 transition-colors duration-200 flex items-center gap-3 bg-gradient-to-r from-pink-500/20 to-rose-500/20"
+                    className="w-full px-3 md:px-4 py-2 md:py-3 text-left text-white hover:bg-white/10 transition-colors duration-200 flex items-center gap-3 bg-gradient-to-r from-pink-500/20 to-rose-500/20 text-sm md:text-base"
                   >
-                    <Code className="w-4 h-4" />
+                    <Code className="w-4 h-4 flex-shrink-0" />
                     <span>🎯 检测到HTML代码，直接渲染</span>
                   </button>
                 ) : (
                   <>
                     <button
                       type="submit"
-                      className="w-full px-4 py-3 text-left text-white hover:bg-white/10 transition-colors duration-200 flex items-center gap-3"
+                      className="w-full px-3 md:px-4 py-2 md:py-3 text-left text-white hover:bg-white/10 transition-colors duration-200 flex items-center gap-3 text-sm md:text-base"
                     >
-                      <Search className="w-4 h-4" />
-                      <span>搜索 &ldquo;{searchQuery}&rdquo;</span>
+                      <Search className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">搜索 &ldquo;{searchQuery}&rdquo;</span>
                     </button>
                     <button
                       onClick={() => router.push(`/agent?message=${encodeURIComponent(searchQuery)}`)}
-                      className="w-full px-4 py-3 text-left text-white hover:bg-white/10 transition-colors duration-200 flex items-center gap-3"
+                      className="w-full px-3 md:px-4 py-2 md:py-3 text-left text-white hover:bg-white/10 transition-colors duration-200 flex items-center gap-3 text-sm md:text-base"
                     >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>与AI对话 &ldquo;{searchQuery}&rdquo;</span>
+                      <MessageCircle className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">与AI对话 &ldquo;{searchQuery}&rdquo;</span>
                     </button>
                   </>
                 )}

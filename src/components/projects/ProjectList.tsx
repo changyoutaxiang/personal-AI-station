@@ -184,10 +184,10 @@ export function ProjectList({
     <div className={className}>
       {/* 工具栏 */}
       <div className="mb-6 space-y-4">
-        {/* 主工具栏 */}
-        <div className="flex items-center justify-between gap-4">
+        {/* 主工具栏 - 响应式优化 */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
           {/* 搜索框 */}
-          <div className="flex-1 max-w-md relative">
+          <div className="flex-1 sm:max-w-md relative">
             <Search 
               className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 opacity-40"
               style={{ color: 'var(--text-secondary)' }}
@@ -206,8 +206,8 @@ export function ProjectList({
             />
           </div>
 
-          {/* 右侧工具 */}
-          <div className="flex items-center gap-2">
+          {/* 右侧工具 - 响应式布局 */}
+          <div className="flex items-center gap-2 justify-end">
             {/* 过滤器按钮 */}
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -290,7 +290,7 @@ export function ProjectList({
                   border: '1px solid var(--card-border)'
                 }}
               >
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   {/* 状态过滤 */}
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
@@ -416,11 +416,11 @@ export function ProjectList({
         </AnimatePresence>
       </div>
 
-      {/* 项目列表/网格 */}
+      {/* 项目列表/网格 - 响应式优化 */}
       <div className={`${
         viewMode === 'grid' 
-          ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6' 
-          : 'space-y-4'
+          ? 'grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6' 
+          : 'space-y-3 md:space-y-4'
       }`}>
         <AnimatePresence mode="popLayout">
           {filteredAndSortedProjects.map((project) => (

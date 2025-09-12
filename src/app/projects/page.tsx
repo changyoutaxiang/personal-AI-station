@@ -226,12 +226,12 @@ function ProjectsPageContent() {
         </div>
       </nav>
       
-      <div className="max-w-7xl mx-auto px-6 pt-20 pb-6 relative z-10">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4" style={{color: 'var(--text-primary)'}}>
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-16 md:pt-20 pb-6 relative z-10">
+        <header className="text-center mb-6 md:mb-8 px-2">
+          <h1 className="text-3xl md:text-4xl font-bold mb-3 md:mb-4 leading-tight" style={{color: 'var(--text-primary)'}}>
             项目管理
           </h1>
-          <p className="text-lg opacity-80" style={{color: 'var(--text-secondary)'}}>
+          <p className="text-base md:text-lg opacity-80" style={{color: 'var(--text-secondary)'}}>
             管理您的项目和任务，跟踪进度和成果
           </p>
         </header>
