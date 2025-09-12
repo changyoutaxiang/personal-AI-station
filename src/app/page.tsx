@@ -186,7 +186,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-3">
             {/* 背景图切换按钮 */}
             <div className="col-span-2 mb-2">
-              <ThemeController mode="compact" showBackgroundSwitcher={true} iconColor="black" />
+              <ThemeController mode="compact" showBackgroundSwitcher={true} iconColor="adaptive" />
             </div>
             
             {navigationItems.map((item) => {
