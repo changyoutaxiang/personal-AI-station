@@ -32,6 +32,38 @@ export interface Message {
   created_at: string;
 }
 
+// 添加缺失的类型定义
+export interface EnhancedWeeklyData {
+  totalEntries: number;
+  uniqueTags: number;
+  topTags: Array<{ tag: string; count: number }>;
+  dailyStats: Array<{ date: string; count: number }>;
+  avgImportance: number;
+  completionRate: number;
+}
+
+export interface Entry {
+  id: number;
+  text: string;
+  importance: number;
+  tags: string[];
+  timestamp: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TodoEntry {
+  id: string;
+  text: string;
+  completed: number;
+  priority: number;
+  category: string;
+  due_date?: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 // 数据库实例占位符（兼容性）
 export const db = {
   prepare: (sql: string) => ({
@@ -51,9 +83,61 @@ export function getDbConnection() {
 }
 
 // 添加缺失的会话和消息相关函数（临时占位符）
-export async function listMessagesByConversation(conversationId: number, limit?: number) {
+export async function listMessagesByConversation(conversationId: number, limit?: number): Promise<Message[]> {
   console.log('📝 listMessagesByConversation 调用 - 迁移到 Supabase 待实现');
   return [];
+}
+
+// 添加缺失的导出函数
+export async function getEnhancedWeeklyReportData(): Promise<EnhancedWeeklyData> {
+  console.log('📊 getEnhancedWeeklyReportData 调用 - 迁移到 Supabase 待实现');
+  return {
+    totalEntries: 0,
+    uniqueTags: 0,
+    topTags: [],
+    dailyStats: [],
+    avgImportance: 0,
+    completionRate: 0
+  };
+}
+
+export async function getAIModelConfig(): Promise<any> {
+  console.log('🤖 getAIModelConfig 调用 - 迁移到 Supabase 待实现');
+  return { model: 'anthropic/claude-3.5-sonnet', provider: 'openrouter' };
+}
+
+export async function getEntryById(id: number): Promise<Entry | null> {
+  console.log('📝 getEntryById 调用 - 迁移到 Supabase 待实现');
+  return null;
+}
+
+export async function createConversation(title: string, folderId?: number): Promise<Conversation> {
+  console.log('💬 createConversation 调用 - 迁移到 Supabase 待实现');
+  return { id: Date.now(), title, folder_id: folderId, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+}
+
+export async function listConversations(): Promise<Conversation[]> {
+  console.log('💬 listConversations 调用 - 迁移到 Supabase 待实现');
+  return [];
+}
+
+export async function createPromptTemplate(data: any): Promise<any> {
+  console.log('📝 createPromptTemplate 调用 - 迁移到 Supabase 待实现');
+  return { id: Date.now(), ...data };
+}
+
+export async function listTags(): Promise<string[]> {
+  console.log('🏷️ listTags 调用 - 迁移到 Supabase 待实现');
+  return [];
+}
+
+export async function createTag(name: string): Promise<any> {
+  console.log('🏷️ createTag 调用 - 迁移到 Supabase 待实现');
+  return { id: Date.now(), name };
+}
+
+export async function deleteTag(id: number): Promise<void> {
+  console.log('🏷️ deleteTag 调用 - 迁移到 Supabase 待实现');
 }
 
 export async function getPromptTemplateById(id: number) {

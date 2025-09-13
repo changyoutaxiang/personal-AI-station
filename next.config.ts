@@ -22,9 +22,9 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // TypeScript配置
+  // TypeScript配置 - 渐进式类型修复
   typescript: {
-    // 在构建时忽略TypeScript错误
+    // 暂时忽略构建错误，优先恢复功能
     ignoreBuildErrors: true,
   },
 

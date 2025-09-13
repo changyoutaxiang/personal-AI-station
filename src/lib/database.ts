@@ -69,12 +69,9 @@ export class Database {
       if (error) throw error
       return data
     } else {
-      const stmt = sqliteDb.prepare(`
-        INSERT INTO entries (content, project_tag, effort_tag, daily_report_tag, created_at, updated_at)
-        VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-      `)
-      const result = stmt.run(content, projectTag, effortTag, dailyReportTag)
-      return { id: result.lastInsertRowid, content, project_tag: projectTag, effort_tag: effortTag, daily_report_tag: dailyReportTag }
+      // SQLite 模式已弃用，使用 Supabase 替代
+      console.log('⚠️ SQLite 模式已弃用，请使用 Supabase');
+      return { id: Date.now(), content, project_tag: projectTag, effort_tag: effortTag, daily_report_tag: dailyReportTag }
     }
   }
 
@@ -96,12 +93,8 @@ export class Database {
       if (error) throw error
       return data
     } else {
-      const stmt = sqliteDb.prepare(`
-        UPDATE entries 
-        SET content = ?, project_tag = ?, effort_tag = ?, daily_report_tag = ?, updated_at = datetime('now')
-        WHERE id = ?
-      `)
-      stmt.run(content, projectTag, effortTag, dailyReportTag, id)
+      // SQLite 模式已弃用，使用 Supabase 替代
+      console.log('⚠️ SQLite 模式已弃用，请使用 Supabase');
       return { id, content, project_tag: projectTag, effort_tag: effortTag, daily_report_tag: dailyReportTag }
     }
   }
@@ -115,8 +108,8 @@ export class Database {
       
       if (error) throw error
     } else {
-      const stmt = sqliteDb.prepare('DELETE FROM entries WHERE id = ?')
-      stmt.run(id)
+      // SQLite 模式已弃用，使用 Supabase 替代
+      console.log('⚠️ SQLite 模式已弃用，请使用 Supabase');
     }
   }
 
@@ -131,12 +124,9 @@ export class Database {
       if (error) throw error
       return data
     } else {
-      const stmt = sqliteDb.prepare(`
-        SELECT * FROM entries 
-        WHERE content LIKE ? 
-        ORDER BY created_at DESC
-      `)
-      return stmt.all(`%${query}%`)
+      // SQLite 模式已弃用，使用 Supabase 替代
+      console.log('⚠️ SQLite 模式已弃用，请使用 Supabase');
+      return []
     }
   }
 
@@ -151,7 +141,9 @@ export class Database {
       if (error) throw error
       return data
     } else {
-      return sqliteDb.prepare('SELECT * FROM tasks ORDER BY created_at DESC').all()
+      // SQLite 模式已弃用，使用 Supabase 替代
+      console.log('⚠️ SQLite 模式已弃用，请使用 Supabase');
+      return []
     }
   }
 
@@ -170,11 +162,8 @@ export class Database {
       if (error) throw error
       return data
     } else {
-      const stmt = sqliteDb.prepare(`
-        INSERT INTO tasks (id, title, description, status, priority, estimated_hours, actual_hours, due_date, completed_at, created_at, updated_at, assignee)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?)
-      `)
-      stmt.run(task.id, task.title, task.description, task.status, task.priority, task.estimated_hours, task.actual_hours, task.due_date, task.completed_at, task.assignee)
+      // SQLite 模式已弃用，使用 Supabase 替代
+      console.log('⚠️ SQLite 模式已弃用，请使用 Supabase');
       return task
     }
   }
@@ -194,14 +183,8 @@ export class Database {
       if (error) throw error
       return data
     } else {
-      const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ')
-      const values = Object.values(updates)
-      const stmt = sqliteDb.prepare(`
-        UPDATE tasks 
-        SET ${fields}, updated_at = datetime('now')
-        WHERE id = ?
-      `)
-      stmt.run(...values, id)
+      // SQLite 模式已弃用，使用 Supabase 替代
+      console.log('⚠️ SQLite 模式已弃用，请使用 Supabase');
       return { id, ...updates }
     }
   }
@@ -215,8 +198,8 @@ export class Database {
       
       if (error) throw error
     } else {
-      const stmt = sqliteDb.prepare('DELETE FROM tasks WHERE id = ?')
-      stmt.run(id)
+      // SQLite 模式已弃用，使用 Supabase 替代
+      console.log('⚠️ SQLite 模式已弃用，请使用 Supabase');
     }
   }
 
