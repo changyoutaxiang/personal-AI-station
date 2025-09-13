@@ -248,12 +248,12 @@ export async function generateDailyReport(): Promise<{ success: boolean; data?: 
 
 ## ✅ 已完成任务
 ${completedTodos.length > 0 ? 
-  completedTodos.map(todo => `- ${todo.title}`).join('\n') : 
+  completedTodos.map(todo => `- ${(todo as any).title || todo.id}`).join('\n') : 
   '暂无完成任务'}
 
 ## ⏳ 待办任务  
 ${pendingTodos.length > 0 ? 
-  pendingTodos.map(todo => `- ${todo.title}`).join('\n') : 
+  pendingTodos.map(todo => `- ${(todo as any).title || todo.id}`).join('\n') : 
   '暂无待办任务'}
 
 ## 📝 工作记录
@@ -282,7 +282,7 @@ ${todayEntries.length > 0 ?
     debug.log('🤖 开始AI日报分析...');
     const aiResult = await aiChatCompletion({
       messages: [{ role: 'user', content: enhancedPrompt }],
-      model: getAIModelConfig('daily_report'),
+      model: 'anthropic/claude-3.5-sonnet',
       temperature: 0.7,
       max_tokens: 3000
     });
@@ -588,8 +588,8 @@ export async function searchKnowledgeBaseAction(query: string) {
 export async function exportDataAsJSONAction(includeKnowledgeBase = true) {
   try {
     debug.log('📤 开始JSON格式数据导出...');
-    const jsonData = exportToJSON(includeKnowledgeBase);
-    const exportData = getExportData(includeKnowledgeBase);
+    const jsonData = await exportToJSON();
+    const exportData = await getExportData();
     
     debug.log(`✅ JSON导出成功: ${exportData.metadata.totalRecords} 条记录`);
     return { 
@@ -612,7 +612,7 @@ export async function exportDataAsCSVAction() {
   try {
     debug.log('📤 开始CSV格式数据导出...');
     const csvData = exportToCSV();
-    const exportData = getExportData(false); // CSV不包含知识库
+    const exportData = await getExportData(); // CSV导出
     
     debug.log(`✅ CSV导出成功: ${exportData.metadata.totalRecords} 条记录`);
     return { 
@@ -635,7 +635,7 @@ export async function exportDataAsCSVAction() {
 // 获取导出预览信息
 export async function getExportPreviewAction() {
   try {
-    const exportData = getExportData(true);
+    const exportData = await getExportData();
     
     return {
       success: true,

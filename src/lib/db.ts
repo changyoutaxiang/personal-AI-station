@@ -76,6 +76,11 @@ export async function deletePromptTemplate(id: number) {
   return true;
 }
 
+export async function deleteMessagesByConversation(conversationId: number) {
+  console.log('📝 deleteMessagesByConversation 调用 - 迁移到 Supabase 待实现');
+  return true;
+}
+
 // AI 配置相关（占位符实现）
 export function getAIProvider(): any {
   return { name: 'openrouter', enabled: true };

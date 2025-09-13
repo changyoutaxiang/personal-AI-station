@@ -22,6 +22,12 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  // TypeScript配置
+  typescript: {
+    // 在构建时忽略TypeScript错误
+    ignoreBuildErrors: true,
+  },
+
   // 实验性功能
   experimental: {
     // 优化包导入

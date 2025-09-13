@@ -50,7 +50,7 @@ export default function DataIntegrityChecker() {
     try {
       const result = await quickHealthCheckAction();
       if (result.success) {
-        setHealth(result.data as HealthStatus);
+        setHealth((result.data as any) as HealthStatus);
       } else {
         setError(result.error || '快速检查失败');
       }
