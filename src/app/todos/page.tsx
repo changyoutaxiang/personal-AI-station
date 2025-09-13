@@ -157,31 +157,42 @@ function TodoPageContent() {
   };
   
   // 过滤和排序逻辑
-  const { todayTodos, weekTodos, finalTodos } = useMemo(() => {
+  const { todayTodos, weekTodos, finalTodos, overdueCount } = useMemo(() => {
     console.log(`📊 开始处理待办事项，总数: ${todos.length}`);
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+    const now = new Date();
+
+    // 计算过期任务
+    const overdueTodos = todos.filter(todo => {
+      if (!todo.dueDate || todo.completed) return false;
+      const dueDate = new Date(todo.dueDate);
+      return dueDate < now;
+    });
+
     const todayFiltered = todos.filter(todo => {
-      // 今日任务：只显示dueDate为今天的任务
+      // 今日任务：包含今天到期的任务 + 过期任务 + category为today的任务
       if (todo.dueDate) {
         const dueDate = new Date(todo.dueDate);
         dueDate.setHours(0, 0, 0, 0);
-        return dueDate.getTime() === today.getTime();
+        // 今天到期的任务
+        if (dueDate.getTime() === today.getTime()) return true;
+        // 过期任务也在今日视图中显示
+        if (dueDate < today && !todo.completed) return true;
       }
       // 如果没有设置dueDate，但category是today，也认为是今日任务
       return todo.category === 'today';
     });
-    
+
     console.log(`今日待办过滤后: ${todayFiltered.length} 条`);
-    
+
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay());
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
-    
+
     // 先获取本周所有任务（包含今日）
     const allWeekTodos = todos.filter(todo => {
       // 本周任务：包含category为'week'和'today'的所有任务
@@ -193,21 +204,22 @@ function TodoPageContent() {
       const createdDate = new Date(todo.createdAt);
       return createdDate >= weekStart && createdDate <= weekEnd;
     });
-    
+
     // 从本周任务中排除今日任务，避免重复显示
     const weekFiltered = allWeekTodos.filter(todo => {
       return !todayFiltered.some(todayTodo => todayTodo.id === todo.id);
     });
-    
+
     console.log(`本周待办过滤后: ${weekFiltered.length} 条`);
-    
+
     const final = activeTab === 'today' ? todayFiltered : weekFiltered;
     console.log(`最终显示: ${final.length} 条`);
-    
+
     return {
       todayTodos: todayFiltered,
       weekTodos: weekFiltered,
-      finalTodos: final
+      finalTodos: final,
+      overdueCount: overdueTodos.length
     };
   }, [todos, activeTab]);
   
@@ -440,19 +452,19 @@ function TodoPageContent() {
           {/* 标签页切换和控制按钮区域 */}
           <div className="mb-6">
             {/* 过期任务警告 */}
-            {activeTab === 'today' && todoMeta && todoMeta.overdue > 0 && (
+            {activeTab === 'today' && overdueCount > 0 && (
               <div className="mb-4 mx-auto max-w-2xl">
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center space-x-3 animate-pulse">
                   <div className="flex-shrink-0">
                     <span className="text-2xl animate-bounce">⚠️</span>
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-red-800 font-semibold">发现 {todoMeta.overdue} 个过期任务</h4>
+                    <h4 className="text-red-800 font-semibold">发现 {overdueCount} 个过期任务</h4>
                     <p className="text-red-600 text-sm">这些任务已超过截止日期，建议优先处理以避免影响后续计划。</p>
                   </div>
                   <div className="flex-shrink-0">
                     <span className="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-medium">
-                      过期 {todoMeta.overdue}
+                      过期 {overdueCount}
                     </span>
                   </div>
                 </div>
@@ -476,9 +488,9 @@ function TodoPageContent() {
                     {todayTodos.length}
                   </span>
                   {/* 过期任务提示 */}
-                  {todoMeta && todoMeta.overdue > 0 && (
+                  {overdueCount > 0 && (
                     <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
-                      {todoMeta.overdue} 过期
+                      {overdueCount} 过期
                     </span>
                   )}
                 </button>
