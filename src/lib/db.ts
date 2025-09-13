@@ -1,6 +1,6 @@
 /**
- * 数据库操作统一接口 - Supabase 实现
- * 这个文件替代了原有的 SQLite 实现，使用 Supabase 作为后端
+ * 数据库操作统一接口 - 纯 Supabase 实现
+ * 完全迁移到 Supabase 云数据库
  */
 
 // 重新导出所有 Supabase 实现
@@ -64,22 +64,9 @@ export interface TodoEntry {
   updated_at: string;
 }
 
-// 数据库实例占位符（兼容性）
-export const db = {
-  prepare: (sql: string) => ({
-    all: () => [],
-    get: () => null,
-    run: () => ({ changes: 0 })
-  })
-};
-
-// 初始化数据库函数（占位符）
+// 初始化数据库函数 - Supabase 不需要本地初始化
 export function initDatabase(): void {
-  console.log('📦 数据库初始化已迁移到 Supabase');
-}
-
-export function getDbConnection() {
-  return db;
+  console.log('📦 使用 Supabase 云数据库，无需本地初始化');
 }
 
 // 添加缺失的会话和消息相关函数（临时占位符）
@@ -300,15 +287,9 @@ export function deletePrompt(id: number): void {
   console.log('deletePrompt - moved to Supabase');
 }
 
-// 默认导出（兼容性）
+// 默认导出
 export default {
-  ...db,
-  initDatabase,
-  getAIProvider,
-  getAllEntries: async () => {
-    const { getAllEntriesAsync } = await import('./db-supabase');
-    return getAllEntriesAsync();
-  }
+  initDatabase
 };
 
 console.log('✅ 数据库接口已迁移到 Supabase 实现');

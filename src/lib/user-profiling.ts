@@ -3,7 +3,7 @@
  * 基于行为数据构建用户的认知画像和工作模式
  */
 
-import { db } from './db';
+// 已迁移到 Supabase，使用新的数据库接口
 import { 
   CognitiveProfile, 
   BehaviorEvent, 

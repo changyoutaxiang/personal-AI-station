@@ -49,11 +49,10 @@ const nextConfig: NextConfig = {
       });
     }
 
-    // Vercel 部署兼容性：排除 better-sqlite3 在客户端构建
+    // 客户端构建优化
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        'better-sqlite3': false,
         'fs': false,
         'path': false,
       };
