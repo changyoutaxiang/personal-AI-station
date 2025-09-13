@@ -64,13 +64,13 @@ export async function getTaskById(id: string): Promise<DbResult<Task>> {
 export async function createTask(taskData: TaskInsert): Promise<DbResult<Task>> {
   const now = new Date().toISOString();
   const taskWithDefaults: TaskInsert = {
-    id: crypto.randomUUID(),
     status: 'todo',
     priority: 'medium',
     actual_hours: 0,
     created_at: now,
     updated_at: now,
     ...taskData,
+    id: taskData.id || crypto.randomUUID(),
   };
 
   const result = await supabase
@@ -142,10 +142,10 @@ export async function getSubtasks(taskId: string): Promise<DbResult<Subtask[]>> 
 // 创建子任务
 export async function createSubtask(subtaskData: SubtaskInsert): Promise<DbResult<Subtask>> {
   const subtaskWithDefaults: SubtaskInsert = {
-    id: crypto.randomUUID(),
     completed: false,
     created_at: new Date().toISOString(),
     ...subtaskData,
+    id: subtaskData.id || crypto.randomUUID(),
   };
 
   const result = await supabase
@@ -184,7 +184,7 @@ export async function deleteSubtask(id: string): Promise<DbResult<boolean>> {
 }
 
 // 按状态获取任务
-export async function getTasksByStatus(status: Task['status']): Promise<DbResult<Task[]>> {
+export async function getTasksByStatus(status: NonNullable<Task['status']>): Promise<DbResult<Task[]>> {
   const result = await supabase
     .from('tasks')
     .select('*')
@@ -195,7 +195,7 @@ export async function getTasksByStatus(status: Task['status']): Promise<DbResult
 }
 
 // 按优先级获取任务
-export async function getTasksByPriority(priority: Task['priority']): Promise<DbResult<Task[]>> {
+export async function getTasksByPriority(priority: NonNullable<Task['priority']>): Promise<DbResult<Task[]>> {
   const result = await supabase
     .from('tasks')
     .select('*')

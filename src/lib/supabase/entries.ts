@@ -136,7 +136,7 @@ export async function getProjectTags(): Promise<DbResult<string[]>> {
     return handleDbError(result);
   }
 
-  const uniqueTags = [...new Set(result.data?.map(item => item.project_tag).filter(Boolean) || [])];
+  const uniqueTags = [...new Set(result.data?.map(item => item.project_tag).filter((tag): tag is string => Boolean(tag)) || [])];
   return { data: uniqueTags, error: null, success: true };
 }
 
@@ -151,7 +151,7 @@ export async function getEffortTags(): Promise<DbResult<string[]>> {
     return handleDbError(result);
   }
 
-  const uniqueTags = [...new Set(result.data?.map(item => item.effort_tag).filter(Boolean) || [])];
+  const uniqueTags = [...new Set(result.data?.map(item => item.effort_tag).filter((tag): tag is string => Boolean(tag)) || [])];
   return { data: uniqueTags, error: null, success: true };
 }
 
@@ -166,7 +166,7 @@ export async function getDailyReportTags(): Promise<DbResult<string[]>> {
     return handleDbError(result);
   }
 
-  const uniqueTags = [...new Set(result.data?.map(item => item.daily_report_tag).filter(Boolean) || [])];
+  const uniqueTags = [...new Set(result.data?.map(item => item.daily_report_tag).filter((tag): tag is string => Boolean(tag)) || [])];
   return { data: uniqueTags, error: null, success: true };
 }
 
@@ -247,8 +247,8 @@ export async function getEntryStats(): Promise<DbResult<{
     // 统计最近7天的条目数量
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentCount = entries.filter(entry => 
-      new Date(entry.created_at) >= sevenDaysAgo
+    const recentCount = entries.filter(entry =>
+      entry.created_at && new Date(entry.created_at) >= sevenDaysAgo
     ).length;
 
     const stats = {
