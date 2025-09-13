@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     }
     
     // 添加历史消息（限制每条消息长度）
-    for (const msg of historyMessages) {
+    for (const msg of historyMessages as any[]) {
       messages.push({
         role: msg.role as 'user' | 'assistant',
         content: msg.content.substring(0, 10000) // 限制历史消息长度
