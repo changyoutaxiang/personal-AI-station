@@ -155,8 +155,8 @@ export function useChatState(): ChatState & ChatActions {
   // 流式聊天 Hook
   const streamChat = useStreamChat();
   
-  // 当前会话对象
-  const currentConversation = state.conversations.find(c => c.id === state.currentConversationId) || null;
+  // 当前会话对象 - 添加安全检查
+  const currentConversation = (state.conversations || []).find(c => c.id === state.currentConversationId) || null;
   
   // 更新状态的辅助函数
   const updateState = useCallback((updates: Partial<ChatState>) => {
@@ -195,7 +195,7 @@ export function useChatState(): ChatState & ChatActions {
       const data = await response.json();
       
       if (data.success) {
-        updateState({ conversations: data.conversations });
+        updateState({ conversations: data.data || [] });
       } else {
         setError(`加载会话失败: ${data.error}`);
         toast.error(`加载会话失败: ${data.error}`);
@@ -242,7 +242,7 @@ export function useChatState(): ChatState & ChatActions {
       const data = await response.json();
       
       if (data.success) {
-        updateState({ templates: data.templates });
+        updateState({ templates: data.data || [] });
       } else {
         console.warn('加载提示模板失败:', data.error);
       }
@@ -258,7 +258,7 @@ export function useChatState(): ChatState & ChatActions {
       const data = await response.json();
       
       if (data.success) {
-        updateState({ folders: data.folders });
+        updateState({ folders: data.data || [] });
       } else {
         console.warn('加载文件夹失败:', data.error);
         toast.error(`加载文件夹失败: ${data.error}`);
