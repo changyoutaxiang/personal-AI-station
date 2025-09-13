@@ -6,8 +6,7 @@
 import type { WorkAnalysis, Entry } from '@/types/index';
 // 移除数据库相关导入，避免客户端组件错误
 // import { getKnowledgeContext } from './knowledge-manager';
-import { getEnhancedWeeklyReportData } from './supabase/export';
-import { getAIModelConfig } from './supabase/config';
+import { getEnhancedWeeklyReportData, getAIModelConfig } from './db';
 import { debug } from '@/lib/debug';
 import { chatCompletion as aiChatCompletion } from './ai-client';
 
@@ -491,7 +490,7 @@ ${candidateTexts}
 
     // 使用新的安全OpenRouter客户端
     const { simpleChatCompletion } = await import('./openrouter-client');
-    const { getOpenRouterApiKey } = await import('./supabase/config');
+    const { getOpenRouterApiKey } = await import('./db');
     
     const dbApiKey = getOpenRouterApiKey();
     
@@ -1122,7 +1121,7 @@ export function buildEnhancedDailyPrompt(entries: Entry[], todos: { completed: a
 /**
  * 构建增强的AI周报提示词（记录+TODO综合分析）
  */
-function buildEnhancedWeeklyPrompt(data: import('./supabase/export').EnhancedWeeklyData): string {
+function buildEnhancedWeeklyPrompt(data: import('./db').EnhancedWeeklyData): string {
   const { entries, todos, productivity, stats } = data;
 
   return `# 角色定位
@@ -1250,7 +1249,7 @@ function buildEnhancedWeeklyPrompt(data: import('./supabase/export').EnhancedWee
 /**
  * 解析增强版AI生成的周报内容
  */
-function parseEnhancedWeeklyReport(aiReport: string, data: import('./supabase/export').EnhancedWeeklyData): {
+function parseEnhancedWeeklyReport(aiReport: string, data: import('./db').EnhancedWeeklyData): {
   summary: string;
   highlights: string[];
   insights: string[];

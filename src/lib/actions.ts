@@ -1,6 +1,13 @@
 'use server';
 
-import { createEntry, getAllEntries, getTodayEntries, getThisWeekEntries, deleteEntry, searchEntries, getAllKnowledgeDocuments, getKnowledgeStats, exportToJSON, exportToCSV, getExportData, validateDataIntegrity, quickHealthCheck, saveSearchHistory, getSearchHistory, getPopularSearches, toggleFavoriteSearch, getFavoriteSearches, deleteSearchHistory, clearSearchHistory, updateEntry, getEnhancedWeeklyReportData, listTodos, getAIModelConfig } from './db';
+import {
+  createEntryAsync, getAllEntriesAsync, getTodayEntriesAsync, getThisWeekEntriesAsync,
+  deleteEntryAsync, searchEntriesAsync, getAllKnowledgeDocuments, getKnowledgeStats,
+  exportToJSON, exportToCSV, getExportData, validateDataIntegrity, quickHealthCheck,
+  saveSearchHistory, getSearchHistory, getPopularSearches, toggleFavoriteSearch,
+  getFavoriteSearches, deleteSearchHistory, clearSearchHistory, updateEntryAsync,
+  getEnhancedWeeklyReportData, listTodosAsync, getAIModelConfig
+} from './db-supabase';
 
 // 日报返回类型定义
 interface DailyReportData {
@@ -63,7 +70,7 @@ export async function addEntry(formData: FormData) {
 
   try {
     debug.log('💾 Attempting to create entry...');
-    const entry = createEntry({
+    const entry = await createEntryAsync({
       content: content.trim(),
       project_tag: projectTag || undefined,
       daily_report_tag: dailyReportTag || '核心进展',
@@ -82,7 +89,7 @@ export async function addEntry(formData: FormData) {
 // 获取所有记录
 export async function fetchEntries() {
   try {
-    const entries = getAllEntries();
+    const entries = await getAllEntriesAsync();
     return { success: true, data: entries };
   } catch (error) {
     debug.error('获取记录失败:', error);
@@ -93,7 +100,7 @@ export async function fetchEntries() {
 // 获取今日记录
 export async function fetchTodayEntries() {
   try {
-    const entries = getTodayEntries();
+    const entries = await getTodayEntriesAsync();
     return { success: true, data: entries };
   } catch (error) {
     debug.error('获取今日记录失败:', error);
@@ -105,7 +112,7 @@ export async function fetchTodayEntries() {
 export async function fetchThisWeekEntries() {
   debug.log('📅 Fetching this week entries...');
   try {
-    const entries = getThisWeekEntries();
+    const entries = await getThisWeekEntriesAsync();
     debug.log(`✅ Found ${entries.length} this week entries`);
     return entries;
   } catch (error) {
@@ -121,7 +128,7 @@ export async function searchEntriesAction(query: string) {
   }
 
   try {
-    const entries = searchEntries(query.trim());
+    const entries = await searchEntriesAsync(query.trim());
     return { success: true, data: entries };
   } catch (error) {
     debug.error('搜索记录失败:', error);
@@ -168,7 +175,7 @@ export async function getSearchStatsAction() {
 // 删除记录
 export async function removeEntry(id: number) {
   try {
-    deleteEntry(id);
+    await deleteEntryAsync(id);
     revalidatePath('/');
     return { success: true };
   } catch (error) {
@@ -186,7 +193,7 @@ export async function updateEntryAction(id: number, updates: {
 }) {
   try {
     debug.log('🔄 更新记录:', { id, updates });
-    const updatedEntry = updateEntry(id, updates);
+    const updatedEntry = await updateEntryAsync(id, updates);
     revalidatePath('/');
     return { success: true, data: updatedEntry };
   } catch (error) {
@@ -199,8 +206,8 @@ export async function updateEntryAction(id: number, updates: {
 export async function generateDailyReport(): Promise<{ success: boolean; data?: DailyReportData | string; error?: string }> {
   try {
     // 获取今日数据
-    const todayEntries = getTodayEntries();
-    const allTodos = listTodos({ category: 'today' });
+    const todayEntries = await getTodayEntriesAsync();
+    const allTodos = await listTodosAsync({ category: 'today' });
     
     const today = new Date().toLocaleDateString('zh-CN');
     
@@ -325,7 +332,7 @@ ${todayEntries.length > 0 ?
     
     // 回退到简单版本
     try {
-      const todayEntries = getTodayEntries();
+      const todayEntries = await getTodayEntriesAsync();
       const projects = [...new Set(todayEntries.filter(e => e.project_tag).map(e => e.project_tag || ''))].filter(p => p);
       
       const fallbackReport = `# 今日总结 (${new Date().toLocaleDateString('zh-CN')})
@@ -410,7 +417,7 @@ export async function findSimilarEntriesAction(content: string) {
 
   try {
     // 获取所有记录进行相似度分析
-    const allEntries = getAllEntries();
+    const allEntries = await getAllEntriesAsync();
     const result = await findSimilarEntries(content.trim(), allEntries);
     return result;
   } catch (error) {
@@ -437,7 +444,7 @@ export async function mergeEntriesAction(targetId: number | undefined, sourceIds
     }
     
     // 验证记录是否存在
-    const allEntries = getAllEntries();
+    const allEntries = await getAllEntriesAsync();
     const allEntryIds = allEntries.map(e => e.id);
     
     // 检查源记录是否存在
@@ -458,18 +465,18 @@ export async function mergeEntriesAction(targetId: number | undefined, sourceIds
       // 删除要合并的源记录
       for (const sourceId of sourceIds) {
         debug.log('🗑️ Deleting source entry:', sourceId);
-        deleteEntry(sourceId);
+        await deleteEntryAsync(sourceId);
       }
-      
+
       // 如果有目标记录（编辑现有记录时），也删除它
       if (targetId) {
         debug.log('🗑️ Deleting target entry:', targetId);
-        deleteEntry(targetId);
+        await deleteEntryAsync(targetId);
       }
-      
+
       // 创建新的合并记录
       debug.log('✨ Creating merged entry with content:', newContent.slice(0, 100) + '...');
-      const mergedEntry = createEntry({
+      const mergedEntry = await createEntryAsync({
         content: newContent.trim(),
         project_tag: undefined, // 合并后可以重新设置
         daily_report_tag: '核心进展', // 提供默认值
@@ -499,7 +506,7 @@ export async function mergeEntriesAction(targetId: number | undefined, sourceIds
 export async function generateIntelligentWeeklyReportAction() {
   try {
     // 获取最近7天的记录
-    const allEntries = getAllEntries();
+    const allEntries = await getAllEntriesAsync();
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     
@@ -809,7 +816,7 @@ export async function batchDeleteEntriesAction(ids: number[]) {
     debug.log(`🗑️ Batch deleting ${ids.length} entries:`, ids);
     
     for (const id of ids) {
-      deleteEntry(id);
+      await deleteEntryAsync(id);
     }
     
     revalidatePath('/');
@@ -834,7 +841,7 @@ export async function batchUpdateEntriesAction(ids: number[], updates: {
     debug.log(`📝 Batch updating ${ids.length} entries:`, { ids, updates });
     
     for (const id of ids) {
-      updateEntry(id, updates);
+      await updateEntryAsync(id, updates);
     }
     
     revalidatePath('/');
