@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
 // GET /api/agent/messages?conversationId=xxx - 获取会话消息
 export async function GET(request: Request) {
@@ -13,27 +14,24 @@ export async function GET(request: Request) {
       }, { status: 400 });
     }
 
-    // 返回示例消息数据
-    const messages = [
-      {
-        id: `msg-${Date.now()}-1`,
-        conversation_id: conversationId,
-        role: 'user',
-        content: '欢迎使用 AI 对话功能！',
-        created_at: new Date().toISOString()
-      },
-      {
-        id: `msg-${Date.now()}-2`,
-        conversation_id: conversationId,
-        role: 'assistant',
-        content: '您好！我是您的 AI 助手，很高兴为您服务。您可以向我提问任何问题。',
-        created_at: new Date().toISOString()
-      }
-    ];
+    // 从 Supabase 获取消息列表
+    const { data: messages, error } = await supabase
+      .from('agent_messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('获取会话消息失败:', error);
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
-      data: messages
+      data: messages || []
     });
   } catch (error) {
     console.error('获取会话消息失败:', error);
@@ -49,13 +47,40 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const newMessage = {
-      id: `msg-${Date.now()}`,
-      conversation_id: body.conversation_id,
-      role: body.role || 'user',
-      content: body.content,
-      created_at: new Date().toISOString()
-    };
+    // 验证必需参数
+    if (!body.conversation_id || !body.content) {
+      return NextResponse.json({
+        success: false,
+        error: '缺少必需参数'
+      }, { status: 400 });
+    }
+
+    // 插入到 Supabase
+    const { data: newMessage, error } = await supabase
+      .from('agent_messages')
+      .insert({
+        conversation_id: body.conversation_id,
+        role: body.role || 'user',
+        content: body.content,
+        model: body.model || null,
+        tokens_used: body.tokens_used || null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('创建消息失败:', error);
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 500 });
+    }
+
+    // 更新会话的 updated_at 时间
+    await supabase
+      .from('agent_conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', body.conversation_id);
 
     return NextResponse.json({
       success: true,

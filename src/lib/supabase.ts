@@ -130,3 +130,33 @@ export interface KnowledgeRelationship {
   strength?: number
   created_at: string
 }
+
+// Agent 相关的数据库类型定义
+export interface AgentFolder {
+  id: string
+  name: string
+  description?: string | null
+  color: string
+  created_at: string
+  updated_at: string
+}
+
+export interface AgentConversation {
+  id: number
+  folder_id?: string | null
+  title: string
+  model?: string
+  system_prompt?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AgentMessage {
+  id: number
+  conversation_id: number
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  model?: string | null
+  tokens_used?: number | null
+  created_at: string
+}

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
 // GET /api/agent/conversations - 获取会话列表
 export async function GET(request: Request) {
@@ -6,22 +7,30 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const folderId = searchParams.get('folderId');
 
-    // 返回示例会话数据
-    const conversations = [
-      {
-        id: 'conversation-1',
-        title: '示例对话',
-        folder_id: folderId || null,
-        last_message_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        message_count: 0
-      }
-    ];
+    // 从 Supabase 获取会话列表
+    let query = supabase
+      .from('agent_conversations')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    // 如果指定了文件夹ID，则过滤
+    if (folderId) {
+      query = query.eq('folder_id', folderId);
+    }
+
+    const { data: conversations, error } = await query;
+
+    if (error) {
+      console.error('获取会话列表失败:', error);
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
-      data: conversations
+      data: conversations || []
     });
   } catch (error) {
     console.error('获取会话列表失败:', error);
@@ -37,15 +46,25 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const newConversation = {
-      id: `conversation-${Date.now()}`,
-      title: body.title || '新对话',
-      folder_id: body.folder_id || null,
-      last_message_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      message_count: 0
-    };
+    // 插入到 Supabase
+    const { data: newConversation, error } = await supabase
+      .from('agent_conversations')
+      .insert({
+        title: body.title || '新对话',
+        folder_id: body.folder_id || null,
+        model: body.model || null,
+        system_prompt: body.system_prompt || null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('创建会话失败:', error);
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
