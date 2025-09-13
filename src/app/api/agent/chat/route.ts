@@ -113,13 +113,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 获取并构建消息历史
-    const historyMessages = await ServerDbController.listMessagesByConversation(conversationId, historyLimit);
+    const historyMessages = await ServerDbController.listMessagesByConversation(conversationId || 0, historyLimit);
     const messages: Array<{ role: 'system' | 'user' | 'assistant', content: string }> = [];
     
     // 添加系统提示
     if (body.systemPrompt || historyMessages.length === 0) {
-      const conversation = await ServerDbController.getConversationById(conversationId);
-      const systemPrompt = body.systemPrompt || conversation?.system_prompt;
+      const conversation = await ServerDbController.getConversationById(conversationId || 0);
+      const systemPrompt = body.systemPrompt || (conversation as any)?.system_prompt;
       if (systemPrompt) {
         const cleanSystemPrompt = sanitizePromptContent(systemPrompt).substring(0, 2000);
         messages.push({ role: 'system', content: cleanSystemPrompt });

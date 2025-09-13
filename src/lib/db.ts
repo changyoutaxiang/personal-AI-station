@@ -51,7 +51,7 @@ export function getDbConnection() {
 }
 
 // 添加缺失的会话和消息相关函数（临时占位符）
-export async function listMessagesByConversation(conversationId: number) {
+export async function listMessagesByConversation(conversationId: number, limit?: number) {
   console.log('📝 listMessagesByConversation 调用 - 迁移到 Supabase 待实现');
   return [];
 }
