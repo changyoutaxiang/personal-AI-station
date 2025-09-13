@@ -13,10 +13,15 @@ export async function GET(request: Request) {
       .select('*')
       .order('updated_at', { ascending: false });
 
-    // 如果指定了文件夹ID，则过滤
-    if (folderId) {
+    // 处理文件夹过滤
+    if (folderId === 'null') {
+      // 当 folderId 是 'null' 字符串时，查询 folder_id 为 NULL 的记录
+      query = query.is('folder_id', null);
+    } else if (folderId) {
+      // 当有具体的文件夹 ID 时，查询该文件夹下的会话
       query = query.eq('folder_id', folderId);
     }
+    // 如果没有 folderId 参数，返回所有会话
 
     const { data: conversations, error } = await query;
 
