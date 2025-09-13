@@ -122,7 +122,11 @@ export async function deleteTask(id: string): Promise<DbResult<boolean>> {
     .eq('id', id);
 
   if (result.error) {
-    return handleDbError(result);
+    return {
+      data: null,
+      error: result.error.message || 'Delete task failed',
+      success: false,
+    };
   }
 
   return { data: true, error: null, success: true };
@@ -177,7 +181,11 @@ export async function deleteSubtask(id: string): Promise<DbResult<boolean>> {
     .eq('id', id);
 
   if (result.error) {
-    return handleDbError(result);
+    return {
+      data: null,
+      error: result.error.message || 'Delete subtask failed',
+      success: false,
+    };
   }
 
   return { data: true, error: null, success: true };
@@ -260,7 +268,11 @@ export async function getTaskStats(): Promise<DbResult<{
       .select('status, due_date');
 
     if (allError) {
-      return handleDbError({ data: null, error: allError });
+      return {
+        data: null,
+        error: allError.message || 'Failed to fetch task statistics',
+        success: false,
+      };
     }
 
     // 获取过期任务数量
@@ -271,7 +283,11 @@ export async function getTaskStats(): Promise<DbResult<{
       .neq('status', 'done');
 
     if (overdueError) {
-      return handleDbError({ data: null, error: overdueError });
+      return {
+        data: null,
+        error: overdueError.message || 'Failed to fetch overdue task count',
+        success: false,
+      };
     }
 
     const stats = {

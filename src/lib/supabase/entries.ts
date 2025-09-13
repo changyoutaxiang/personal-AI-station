@@ -74,7 +74,11 @@ export async function deleteEntry(id: number): Promise<DbResult<boolean>> {
     .eq('id', id);
 
   if (result.error) {
-    return handleDbError(result);
+    return {
+      data: null,
+      error: result.error.message || 'Delete operation failed',
+      success: false,
+    };
   }
 
   return { data: true, error: null, success: true };
@@ -133,7 +137,11 @@ export async function getProjectTags(): Promise<DbResult<string[]>> {
     .not('project_tag', 'is', null);
 
   if (result.error) {
-    return handleDbError(result);
+    return {
+      data: null,
+      error: result.error.message || 'Failed to fetch project tags',
+      success: false,
+    };
   }
 
   const uniqueTags = [...new Set(result.data?.map(item => item.project_tag).filter((tag): tag is string => Boolean(tag)) || [])];
@@ -148,7 +156,11 @@ export async function getEffortTags(): Promise<DbResult<string[]>> {
     .not('effort_tag', 'is', null);
 
   if (result.error) {
-    return handleDbError(result);
+    return {
+      data: null,
+      error: result.error.message || 'Failed to fetch effort tags',
+      success: false,
+    };
   }
 
   const uniqueTags = [...new Set(result.data?.map(item => item.effort_tag).filter((tag): tag is string => Boolean(tag)) || [])];
@@ -163,7 +175,11 @@ export async function getDailyReportTags(): Promise<DbResult<string[]>> {
     .not('daily_report_tag', 'is', null);
 
   if (result.error) {
-    return handleDbError(result);
+    return {
+      data: null,
+      error: result.error.message || 'Failed to fetch daily report tags',
+      success: false,
+    };
   }
 
   const uniqueTags = [...new Set(result.data?.map(item => item.daily_report_tag).filter((tag): tag is string => Boolean(tag)) || [])];
@@ -222,7 +238,11 @@ export async function getEntryStats(): Promise<DbResult<{
       .select('project_tag, effort_tag, daily_report_tag, created_at');
 
     if (error) {
-      return handleDbError({ data: null, error });
+      return {
+        data: null,
+        error: error.message || 'Failed to fetch entry statistics',
+        success: false,
+      };
     }
 
     const entries = allEntries || [];
