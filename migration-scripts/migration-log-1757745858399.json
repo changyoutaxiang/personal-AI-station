@@ -1,0 +1,23 @@
+{
+  "startTime": "2025-09-13T06:44:11.733Z",
+  "tables": {
+    "projects": {
+      "status": "success",
+      "count": 2,
+      "transformed": true
+    },
+    "tasks": {
+      "status": "success",
+      "count": 2,
+      "transformed": true
+    },
+    "subtasks": {
+      "status": "empty",
+      "count": 0
+    }
+  },
+  "errors": [],
+  "summary": {},
+  "endTime": "2025-09-13T06:44:18.398Z",
+  "duration": 6665
+}

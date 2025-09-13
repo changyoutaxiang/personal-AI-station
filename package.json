@@ -30,6 +30,7 @@
     "better-sqlite3": "^12.2.0",
     "clsx": "^2.1.1",
     "dompurify": "^3.2.6",
+    "dotenv": "^17.2.2",
     "framer-motion": "^12.23.12",
     "html2canvas": "^1.4.1",
     "js-beautify": "^1.15.4",
