@@ -11,7 +11,7 @@ import type {
   ChatResponse,
   Tag 
 } from '@/components/agent/types';
-import type { ConversationFolder } from '@/lib/db';
+import type { AgentFolder } from '@/lib/supabase';
 
 // 状态接口定义
 export interface ChatState {
@@ -25,10 +25,10 @@ export interface ChatState {
   // 列表数据
   conversations: Conversation[];
   templates: PromptTemplate[];
-  folders: ConversationFolder[];
-  
+  folders: AgentFolder[];
+
   // 文件夹相关状态
-  selectedFolderId: number | null;
+  selectedFolderId: string | null;
   foldersLoading: boolean;
   
   // UI 状态
@@ -75,11 +75,11 @@ export interface ChatActions {
   loadFolders: () => Promise<void>;
   
   // 文件夹操作
-  selectFolder: (folderId: number | null) => void;
+  selectFolder: (folderId: string | null) => void;
   createFolder: (name: string, description?: string, color?: string) => Promise<void>;
-  deleteFolder: (folderId: number) => Promise<void>;
-  renameFolder: (folderId: number, newName: string) => Promise<void>;
-  moveConversationToFolder: (conversationId: number, folderId: number | null) => Promise<void>;
+  deleteFolder: (folderId: string) => Promise<void>;
+  renameFolder: (folderId: string, newName: string) => Promise<void>;
+  moveConversationToFolder: (conversationId: number, folderId: string | null) => Promise<void>;
   
 
   
@@ -185,7 +185,7 @@ export function useChatState(): ChatState & ChatActions {
       
       // 添加文件夹过滤参数
       if (state.selectedFolderId !== null) {
-        params.append('folderId', state.selectedFolderId.toString());
+        params.append('folderId', state.selectedFolderId);
       } else {
         // 当selectedFolderId为null时，表示"全部对话"，只显示未分配到文件夹的对话
         params.append('folderId', 'null');
@@ -513,7 +513,7 @@ export function useChatState(): ChatState & ChatActions {
 
   
   // 文件夹操作函数
-  const selectFolder = useCallback((folderId: number | null) => {
+  const selectFolder = useCallback((folderId: string | null) => {
     updateState({ selectedFolderId: folderId });
   }, [updateState]);
   
@@ -542,7 +542,7 @@ export function useChatState(): ChatState & ChatActions {
     }
   }, [loadFolders]);
   
-  const deleteFolder = useCallback(async (folderId: number) => {
+  const deleteFolder = useCallback(async (folderId: string) => {
     try {
       const response = await fetch(`/api/agent/folders/${folderId}`, {
         method: 'DELETE'
@@ -567,10 +567,10 @@ export function useChatState(): ChatState & ChatActions {
     }
   }, [loadFolders, state.selectedFolderId, updateState]);
   
-  const renameFolder = useCallback(async (folderId: number, newName: string) => {
+  const renameFolder = useCallback(async (folderId: string, newName: string) => {
     try {
       const response = await fetch(`/api/agent/folders/${folderId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -592,7 +592,7 @@ export function useChatState(): ChatState & ChatActions {
     }
   }, [loadFolders]);
   
-  const moveConversationToFolder = useCallback(async (conversationId: number, folderId: number | null) => {
+  const moveConversationToFolder = useCallback(async (conversationId: number, folderId: string | null) => {
     try {
       // 根据是否有folderId选择不同的API路径
       const url = folderId 

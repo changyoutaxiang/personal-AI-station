@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { LoadingSpinner } from './LoadingStates';
 import { ConversationListSkeleton } from './SkeletonLoaders';
 import type { Conversation } from './types';
-import type { ConversationFolder } from '@/lib/db';
+import type { AgentFolder } from '@/lib/supabase';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface ChatSidebarProps {
@@ -12,18 +12,18 @@ interface ChatSidebarProps {
   currentConversation: Conversation | null;
   searchKeyword: string;
   conversationsLoading: boolean;
-  folders?: ConversationFolder[];
-  selectedFolderId?: number | null;
+  folders?: AgentFolder[];
+  selectedFolderId?: string | null;
   onSelectConversation: (conversation: Conversation) => void;
   onCreateNewConversation: () => void;
   onDeleteConversation: (conversationId: number) => void;
   onSearchChange: (keyword: string) => void;
   // 文件夹相关回调
   onCreateFolder?: (name: string, description?: string, color?: string) => void;
-  onDeleteFolder?: (folderId: number) => void;
-  onRenameFolder?: (folderId: number, newName: string) => void;
-  onSelectFolder?: (folderId: number | null) => void;
-  onMoveConversationToFolder?: (conversationId: number, folderId: number | null) => void;
+  onDeleteFolder?: (folderId: string) => void;
+  onRenameFolder?: (folderId: string, newName: string) => void;
+  onSelectFolder?: (folderId: string | null) => void;
+  onMoveConversationToFolder?: (conversationId: number, folderId: string | null) => void;
 }
 
 export default function ChatSidebar({
@@ -52,7 +52,7 @@ export default function ChatSidebar({
   const [selectedFolderColor, setSelectedFolderColor] = useState('#3B82F6');
   
   // 文件夹重命名状态
-  const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renameFolderName, setRenameFolderName] = useState('');
   
 
@@ -65,11 +65,11 @@ export default function ChatSidebar({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
   const [showDeleteFolderConfirm, setShowDeleteFolderConfirm] = useState(false);
-  const [folderToDelete, setFolderToDelete] = useState<ConversationFolder | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<AgentFolder | null>(null);
   
   // 拖拽状态
   const [draggedConversation, setDraggedConversation] = useState<Conversation | null>(null);
-  const [dragOverFolder, setDragOverFolder] = useState<number | null>(null);
+  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
 
   // 确认删除会话
   const confirmDelete = (conversation: Conversation) => {
@@ -93,7 +93,7 @@ export default function ChatSidebar({
   };
 
   // 确认删除文件夹
-  const confirmDeleteFolder = (folder: ConversationFolder) => {
+  const confirmDeleteFolder = (folder: AgentFolder) => {
     setFolderToDelete(folder);
     setShowDeleteFolderConfirm(true);
   };
@@ -130,7 +130,7 @@ export default function ChatSidebar({
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDragEnterFolder = (folderId: number) => {
+  const handleDragEnterFolder = (folderId: string) => {
     setDragOverFolder(folderId);
   };
 
@@ -138,7 +138,7 @@ export default function ChatSidebar({
     setDragOverFolder(null);
   };
 
-  const handleDropOnFolder = (e: React.DragEvent, folderId: number) => {
+  const handleDropOnFolder = (e: React.DragEvent, folderId: string) => {
     e.preventDefault();
     if (draggedConversation && onMoveConversationToFolder) {
       onMoveConversationToFolder(draggedConversation.id, folderId);
