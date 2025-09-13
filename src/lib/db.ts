@@ -50,6 +50,32 @@ export function getDbConnection() {
   return db;
 }
 
+// 添加缺失的会话和消息相关函数（临时占位符）
+export async function listMessagesByConversation(conversationId: number) {
+  console.log('📝 listMessagesByConversation 调用 - 迁移到 Supabase 待实现');
+  return [];
+}
+
+export async function getPromptTemplateById(id: number) {
+  console.log('📝 getPromptTemplateById 调用 - 迁移到 Supabase 待实现');
+  return null;
+}
+
+export async function listPromptTemplates() {
+  console.log('📝 listPromptTemplates 调用 - 迁移到 Supabase 待实现');
+  return [];
+}
+
+export async function updatePromptTemplate(id: number, data: any) {
+  console.log('📝 updatePromptTemplate 调用 - 迁移到 Supabase 待实现');
+  return null;
+}
+
+export async function deletePromptTemplate(id: number) {
+  console.log('📝 deletePromptTemplate 调用 - 迁移到 Supabase 待实现');
+  return true;
+}
+
 // AI 配置相关（占位符实现）
 export function getAIProvider(): any {
   return { name: 'openrouter', enabled: true };

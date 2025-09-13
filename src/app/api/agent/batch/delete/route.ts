@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       for (const id of ids) {
         try {
           // 先检查消息是否存在
-          const message = getMessageById(id);
+          const message = await getMessageById(id);
           if (!message) {
             results.failedCount++;
             results.errors.push(`消息 ${id} 不存在`);
@@ -61,14 +61,9 @@ export async function POST(request: NextRequest) {
           }
 
           // 执行删除
-          const deleted = deleteMessage(id);
-          if (deleted) {
-            results.successCount++;
-            results.deletedIds.push(id);
-          } else {
-            results.failedCount++;
-            results.errors.push(`删除消息 ${id} 失败`);
-          }
+          await deleteMessage(id);
+          results.successCount++;
+          results.deletedIds.push(id);
         } catch (error) {
           results.failedCount++;
           results.errors.push(`删除消息 ${id} 时发生错误: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -79,7 +74,7 @@ export async function POST(request: NextRequest) {
       for (const id of ids) {
         try {
           // 先检查会话是否存在
-          const conversation = getConversationById(id);
+          const conversation = await getConversationById(id);
           if (!conversation) {
             results.failedCount++;
             results.errors.push(`会话 ${id} 不存在`);
@@ -87,14 +82,9 @@ export async function POST(request: NextRequest) {
           }
 
           // 执行删除（会同时删除相关的消息）
-          const deleted = deleteConversation(id);
-          if (deleted) {
-            results.successCount++;
-            results.deletedIds.push(id);
-          } else {
-            results.failedCount++;
-            results.errors.push(`删除会话 ${id} 失败`);
-          }
+          await deleteConversation(id);
+          results.successCount++;
+          results.deletedIds.push(id);
         } catch (error) {
           results.failedCount++;
           results.errors.push(`删除会话 ${id} 时发生错误: ${error instanceof Error ? error.message : '未知错误'}`);
