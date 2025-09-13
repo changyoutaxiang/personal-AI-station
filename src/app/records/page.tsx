@@ -49,6 +49,12 @@ function RecordsPageContent() {
 
   const navigationItems = [
     {
+      icon: Brain,
+      label: '首页',
+      href: '/',
+      color: 'from-blue-500 to-purple-600'
+    },
+    {
       icon: MessageCircle,
       label: '对话',
       href: '/agent',
