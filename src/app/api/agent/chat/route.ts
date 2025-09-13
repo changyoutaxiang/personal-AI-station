@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       if (!systemPrompt) {
         try {
           const templates = await ServerDbController.listPromptTemplates();
-          const defaultTemplate = templates.find(t => t.name === '通用中文助理') || templates[0];
+          const defaultTemplate = (templates as any[]).find((t: any) => t.name === '通用中文助理') || (templates as any[])[0];
           systemPrompt = defaultTemplate?.content || '你是一个友善、专业的中文AI助理。';
         } catch (error) {
           debug.warn('获取默认模板失败:', error);
