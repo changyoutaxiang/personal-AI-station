@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
 
+// 内存中的文件夹存储（临时解决方案，生产环境应使用数据库）
+// 使用全局变量在请求之间保持数据
+if (!global.agentFolders) {
+  global.agentFolders = [];
+}
+
 // GET /api/agent/folders - 获取文件夹列表
 export async function GET() {
   try {
-    // 返回示例文件夹数据
-    const folders = [
-      {
-        id: 'default',
-        name: '默认文件夹',
-        color: '#3B82F6',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-    ];
+    // 返回存储的文件夹数据
+    const folders = global.agentFolders || [];
 
     return NextResponse.json({
       success: true,
@@ -35,10 +33,17 @@ export async function POST(request: Request) {
     const newFolder = {
       id: `folder-${Date.now()}`,
       name: body.name || '新文件夹',
+      description: body.description || '',
       color: body.color || '#3B82F6',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+
+    // 将新文件夹添加到存储中
+    if (!global.agentFolders) {
+      global.agentFolders = [];
+    }
+    global.agentFolders.push(newFolder);
 
     return NextResponse.json({
       success: true,
