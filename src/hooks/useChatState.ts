@@ -385,6 +385,10 @@ export function useChatState(): ChatState & ChatActions {
     );
 
     updateState({ loading: false });
+
+    // 无论是新会话还是已有会话，都刷新会话列表
+    // 这样可以更新会话的最后消息时间和标题
+    await loadConversations();
   }, [
     state.loading,
     streamChat.isStreaming,

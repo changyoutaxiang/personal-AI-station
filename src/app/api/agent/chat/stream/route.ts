@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
 // 创建 SSE (Server-Sent Events) 响应
 function createSSEResponse(stream: ReadableStream) {
@@ -155,10 +156,58 @@ export async function POST(request: Request) {
       async start(controller) {
         const encoder = new TextEncoder();
 
-        // 生成会话ID（如果没有）
-        const actualConversationId = conversationId || Date.now();
-        const userMessageId = Date.now();
-        const assistantMessageId = Date.now() + 1;
+        // 处理会话 ID
+        let actualConversationId = conversationId;
+        let userMessageId: number;
+        let assistantMessageId: number;
+
+        // 如果没有会话ID，创建新会话
+        if (!actualConversationId) {
+          const { data: newConversation, error: convError } = await supabase
+            .from('agent_conversations')
+            .insert({
+              title: message.slice(0, 50) + (message.length > 50 ? '...' : ''),
+              model: model || 'anthropic/claude-3.5-sonnet',
+              system_prompt: systemPrompt || null
+            })
+            .select()
+            .single();
+
+          if (convError) {
+            console.error('创建会话失败:', convError);
+            const errorData = {
+              type: 'error',
+              error: {
+                message: '创建会话失败',
+                details: convError.message,
+                solution: '请刷新页面重试'
+              }
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorData)}\n\n`));
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+            return;
+          }
+          actualConversationId = newConversation.id;
+        }
+
+        // 保存用户消息到数据库
+        const { data: userMsg, error: userMsgError } = await supabase
+          .from('agent_messages')
+          .insert({
+            conversation_id: actualConversationId,
+            role: 'user',
+            content: message,
+            model: null,
+            tokens_used: null
+          })
+          .select()
+          .single();
+
+        if (userMsgError) {
+          console.error('保存用户消息失败:', userMsgError);
+        }
+        userMessageId = userMsg?.id || Date.now();
 
         // 1. 发送初始化事件（前端期望的格式）
         const initData = {
@@ -249,6 +298,30 @@ export async function POST(request: Request) {
           controller.close();
           return;
         }
+
+        // 保存助手回复到数据库
+        const { data: assistantMsg, error: assistantMsgError } = await supabase
+          .from('agent_messages')
+          .insert({
+            conversation_id: actualConversationId,
+            role: 'assistant',
+            content: fullContent,
+            model: model || 'anthropic/claude-3.5-sonnet',
+            tokens_used: null
+          })
+          .select()
+          .single();
+
+        if (assistantMsgError) {
+          console.error('保存助手消息失败:', assistantMsgError);
+        }
+        assistantMessageId = assistantMsg?.id || Date.now() + 1;
+
+        // 更新会话的 updated_at 时间
+        await supabase
+          .from('agent_conversations')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', actualConversationId);
 
         // 6. 发送完成事件（前端期望的格式）
         const finalData = {
