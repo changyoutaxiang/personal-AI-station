@@ -84,12 +84,12 @@ async function callOpenRouterAPI(
           if (delta) {
             fullContent += delta;
 
-            // 发送增量内容
-            const deltaData = {
-              type: 'assistant_message_delta',
-              delta: delta
+            // 发送增量内容（前端期望的格式）
+            const chunkData = {
+              type: 'chunk',
+              content: delta
             };
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(deltaData)}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunkData)}\n\n`));
           }
         } catch (e) {
           console.warn('Failed to parse SSE data:', e);
@@ -157,43 +157,20 @@ export async function POST(request: Request) {
 
         // 生成会话ID（如果没有）
         const actualConversationId = conversationId || Date.now();
-
-        // 1. 如果是新会话，先发送会话创建事件
-        if (!conversationId) {
-          const conversationData = {
-            type: 'conversation_created',
-            conversationId: actualConversationId
-          };
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(conversationData)}\n\n`));
-        }
-
-        // 2. 发送用户消息
-        const userMessage = {
-          type: 'user_message',
-          message: {
-            id: Date.now(),
-            conversation_id: actualConversationId,
-            role: 'user',
-            content: message,
-            created_at: new Date().toISOString()
-          }
-        };
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(userMessage)}\n\n`));
-
-        // 3. 开始流式发送助手消息
+        const userMessageId = Date.now();
         const assistantMessageId = Date.now() + 1;
-        const startData = {
-          type: 'assistant_message_start',
-          message: {
-            id: assistantMessageId,
-            conversation_id: actualConversationId,
-            role: 'assistant',
-            content: '',
-            created_at: new Date().toISOString(),
-            isStreaming: true
+
+        // 1. 发送初始化事件（前端期望的格式）
+        const initData = {
+          type: 'init',
+          conversationId: actualConversationId,
+          userMessage: {
+            id: userMessageId,
+            content: message,
+            role: 'user'
           }
         };
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(startData)}\n\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(initData)}\n\n`));
 
         // 4. 构建消息历史（这里暂时只使用当前消息）
         const messages = [];
@@ -273,19 +250,16 @@ export async function POST(request: Request) {
           return;
         }
 
-        // 6. 发送完成事件
-        const endData = {
-          type: 'assistant_message_end',
-          message: {
+        // 6. 发送完成事件（前端期望的格式）
+        const finalData = {
+          type: 'final',
+          assistant: {
             id: assistantMessageId,
-            conversation_id: actualConversationId,
-            role: 'assistant',
             content: fullContent,
-            created_at: new Date().toISOString(),
-            isStreaming: false
+            tokensUsed: 0 // 这里暂时不统计 token
           }
         };
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(endData)}\n\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalData)}\n\n`));
 
         // 7. 发送结束标记
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
