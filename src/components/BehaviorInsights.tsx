@@ -21,8 +21,16 @@ export default function BehaviorInsights() {
   const loadStats = async () => {
     setLoading(true);
     try {
-      const behaviorStats = getBehaviorStats(7); // 最近7天的数据
-      setStats(behaviorStats);
+      const behaviorStats = await getBehaviorStats(); // 获取行为统计数据
+      setPatterns(behaviorStats.patterns);
+      setInsights(behaviorStats.insights);
+      // 设置默认统计数据
+      setStats({
+        totalEvents: 0,
+        eventsByType: {},
+        dailyActivity: {},
+        mostActiveHour: 9
+      });
     } catch (error) {
       debug.error('加载行为统计失败:', error);
     } finally {
@@ -92,7 +100,7 @@ export default function BehaviorInsights() {
     'page_view': '页面访问',
     'content_create': '内容创建',
     'content_edit': '内容编辑',
-    'search_query': '搜索查询',
+
     'ai_interaction': 'AI交互',
     'tag_usage': '标签使用',
     'focus_session': '专注会话'

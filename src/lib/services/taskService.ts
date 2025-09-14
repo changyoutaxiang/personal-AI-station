@@ -217,19 +217,5 @@ export class TaskService {
   /**
    * 搜索任务
    */
-  static async searchTasks(query: string, projectId?: string): Promise<Task[]> {
-    // 注意：这里简单实现为获取所有任务然后过滤
-    // 生产环境中应该在API层实现搜索
-    const { tasks } = await this.getTasks({ 
-      projectId,
-      limit: 1000 
-    });
-    
-    const searchQuery = query.toLowerCase();
-    return tasks.filter(task => 
-      task.title.toLowerCase().includes(searchQuery) ||
-      (task.description && task.description.toLowerCase().includes(searchQuery)) ||
-      (task.assignee && task.assignee.toLowerCase().includes(searchQuery))
-    );
-  }
+
 }

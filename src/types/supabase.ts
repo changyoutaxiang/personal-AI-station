@@ -49,6 +49,108 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          parent_id: string | null
+          status: string
+          priority: string
+          progress: number
+          estimated_hours: number | null
+          actual_hours: number
+          start_date: string | null
+          due_date: string | null
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+          color: string | null
+          icon: string | null
+          template_id: string | null
+        }
+        Insert: {
+          id: string
+          name: string
+          description?: string | null
+          parent_id?: string | null
+          status?: string
+          priority?: string
+          progress?: number
+          estimated_hours?: number | null
+          actual_hours?: number
+          start_date?: string | null
+          due_date?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+          color?: string | null
+          icon?: string | null
+          template_id?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          parent_id?: string | null
+          status?: string
+          priority?: string
+          progress?: number
+          estimated_hours?: number | null
+          actual_hours?: number
+          start_date?: string | null
+          due_date?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+          color?: string | null
+          icon?: string | null
+          template_id?: string | null
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          status: string
+          priority: string
+          project_id: string | null
+          assigned_to: string | null
+          due_date: string | null
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          title: string
+          description?: string | null
+          status?: string
+          priority?: string
+          project_id?: string | null
+          assigned_to?: string | null
+          due_date?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          status?: string
+          priority?: string
+          project_id?: string | null
+          assigned_to?: string | null
+          due_date?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       entries: {
         Row: {
           id: number

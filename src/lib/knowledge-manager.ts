@@ -289,23 +289,3 @@ export function getKnowledgeContext(): string {
     return '';
   }
 }
-
-/**
- * 搜索知识库内容
- */
-export function searchKnowledgeBase(query: string): KnowledgeDocument[] {
-  try {
-    const documents = getAllKnowledgeDocuments() as KnowledgeDocument[];
-    const searchTerm = query.toLowerCase();
-    
-    return documents.filter(doc => 
-      doc.title.toLowerCase().includes(searchTerm) ||
-      doc.content.toLowerCase().includes(searchTerm) ||
-      (doc.summary && doc.summary.toLowerCase().includes(searchTerm)) ||
-      (doc.keywords && doc.keywords.toLowerCase().includes(searchTerm))
-    ).sort((a, b) => b.priority - a.priority);
-  } catch (error) {
-    debug.error('搜索知识库失败:', error);
-    return [];
-  }
-}

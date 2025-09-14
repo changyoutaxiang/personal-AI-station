@@ -93,26 +93,7 @@ export interface CreateKnowledgeDocument {
 }
 
 
-// 搜索相关类型定义
-export interface SearchResult {
-  entries: Entry[];
-  totalCount: number;
-  searchTime: number;
-  searchTerms: string[];
-  suggestions: string[];
-}
 
-export interface SearchItemResult {
-  id: number;
-  content: string;
-  project_tag?: string;
-  attribute_tag?: string;
-  urgency_tag?: string;
-  daily_report_tag?: string;
-  relevanceScore: number;
-  matchedTerms: string[];
-  highlightedContent: string;
-}
 
 // 主页 Tab 枚举/常量，统一命名规范，避免不一致
 export const HomeTabs = {

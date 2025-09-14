@@ -6,8 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import { Search, MessageCircle, CheckSquare, Brain, Settings, BarChart3, Code, FolderKanban, Timer } from 'lucide-react';
 import EntryForm from '@/components/EntryForm';
 import MultiViewEntryList from '@/components/MultiViewEntryList';
-import SearchBox from '@/components/SearchBox';
-import SearchResults from '@/components/SearchResults';
+
 import AIProviderConfig from '@/components/AIProviderConfig';
 import EnergyModeToggle from '@/components/EnergyModeToggle';
 import ThemeController from '@/components/ThemeController';
@@ -33,7 +32,7 @@ const LoadingSpinner = () => (
   </div>
 );
 import { trackEvent } from '@/lib/client-tracker';
-import type { SearchResult } from '@/types/index';
+
 import { HomeTabs, type HomeTab } from '@/types/index';
 
 
@@ -41,8 +40,7 @@ function RecordsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<HomeTab>(HomeTabs.RECORDS);
-  const [isSearchMode, setIsSearchMode] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
+
   const [currentViewMode, setCurrentViewMode] = useState<'today' | 'week' | 'history'>('today');
   const [showPomodoro, setShowPomodoro] = useState(false);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'sunset');
@@ -115,17 +113,7 @@ function RecordsPageContent() {
       setActiveTab(HomeTabs.RECORDS);
     }
     
-    // 如果有搜索参数，触发搜索
-    if (search) {
-      // 这里需要触发搜索，但需要等SearchBox组件加载完成
-      // 可以通过设置一个状态来实现
-      setIsSearchMode(true);
-    }
-    
-    // 如果有content参数，不进入搜索模式，让用户直接编辑
-    if (content) {
-      setIsSearchMode(false);
-    }
+
   }, [searchParams]);
 
   useEffect(() => {
@@ -136,26 +124,9 @@ function RecordsPageContent() {
     trackEvent.pageView(`/records/tab/${activeTab}`);
   }, [activeTab]);
 
-  const handleSearchResults = (results: SearchResult) => {
-    setSearchResults(results);
-    setIsSearchMode(true);
-    
-    if (results.searchTerms.length > 0) {
-      trackEvent.search(results.searchTerms.join(' '), results.totalCount);
-    }
-  };
-
-  const handleClearSearch = () => {
-    setIsSearchMode(false);
-    setSearchResults(null);
-  };
 
   const handleEntryDeleted = () => {
-    // 如果在搜索模式下删除了条目，需要重新搜索以更新结果
-    if (isSearchMode && searchResults) {
-      // 这里可以触发重新搜索，但为了简单起见，我们清除搜索模式
-      handleClearSearch();
-    }
+    // 处理条目删除后的逻辑
   };
 
   return (
@@ -236,7 +207,7 @@ function RecordsPageContent() {
             {activeTab === HomeTabs.RECORDS && (
               <Animated animation="fadeIn" duration={400} className="max-w-6xl mx-auto">
                 {/* 核心功能：快速记录区域（突出显示） - 响应式优化 */}
-                {!isSearchMode && (
+                {(
                   <div className="mb-6 md:mb-8">
                     {/* Slogan - 响应式字号 */}
                     <div className="text-center mb-8 md:mb-10 px-2">
@@ -257,34 +228,14 @@ function RecordsPageContent() {
 
                 {/* 搜索与记录区域 */}
                 <div className="space-y-6">
-                  {/* 次要功能：搜索框区域（简化样式） - 仅在历史记录视图下显示 */}
-                  {currentViewMode === 'history' && (
-                    <div className="rounded-xl p-4 glass-border-soft" style={{
-                      background: 'var(--card-glass)',
-                      backdropFilter: 'blur(10px)'
-                    }}>
-                      <SearchBox 
-                        onSearchResults={handleSearchResults}
-                        onClearSearch={handleClearSearch}
-                      />
-                    </div>
-                  )}
-
                   {/* 内容显示区域 */}
                   <div className="rounded-xl p-4 shadow-lg glass-border-soft" style={{
                     background: 'var(--card-glass)',
                     backdropFilter: 'blur(15px)'
                   }}>
-                    {isSearchMode && searchResults ? (
-                      <SearchResults 
-                        results={searchResults}
-                        onEntryDeleted={handleEntryDeleted}
-                      />
-                    ) : (
-                      <MultiViewEntryList 
-                        onViewModeChange={setCurrentViewMode}
-                      />
-                    )}
+                    <MultiViewEntryList 
+                      onViewModeChange={setCurrentViewMode}
+                    />
                   </div>
                 </div>
               </Animated>

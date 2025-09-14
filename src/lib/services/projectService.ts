@@ -148,22 +148,7 @@ export class ProjectService {
   /**
    * 搜索项目
    */
-  static async searchProjects(query: string): Promise<ProjectWithStats[]> {
-    const response = await fetch(`${this.baseUrl}/search?q=${encodeURIComponent(query)}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || '搜索失败');
-    }
-    
-    const data = await response.json();
-    return data.projects;
-  }
+
 
   /**
    * 获取项目统计信息

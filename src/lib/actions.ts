@@ -2,10 +2,9 @@
 
 import {
   createEntryAsync, getAllEntriesAsync, getTodayEntriesAsync, getThisWeekEntriesAsync,
-  deleteEntryAsync, searchEntriesAsync, getAllKnowledgeDocuments, getKnowledgeStats,
+  deleteEntryAsync, getAllKnowledgeDocuments, getKnowledgeStats,
   exportToJSON, exportToCSV, getExportData, validateDataIntegrity, quickHealthCheck,
-  saveSearchHistory, getSearchHistory, getPopularSearches, toggleFavoriteSearch,
-  getFavoriteSearches, deleteSearchHistory, clearSearchHistory, updateEntryAsync,
+  updateEntryAsync,
   getEnhancedWeeklyReportData, listTodosAsync, getAIModelConfig
 } from './db-supabase';
 
@@ -36,10 +35,10 @@ interface DailyReportData {
 }
 import { polishText, generateQuestions, findSimilarEntries, generateIntelligentWeeklyReport, buildEnhancedDailyPrompt } from './ai';
 import { chatCompletion as aiChatCompletion } from './ai-client';
-import { syncKnowledgeBase, searchKnowledgeBase } from './knowledge-manager';
+import { syncKnowledgeBase } from './knowledge-manager';
 import { debug } from './debug';
 
-import { quickSearch, getSearchStats } from './search';
+
 import { revalidatePath } from 'next/cache';
 
 // 添加新记录
@@ -121,56 +120,7 @@ export async function fetchThisWeekEntries() {
   }
 }
 
-// 搜索记录（基础版本，保持兼容性）
-export async function searchEntriesAction(query: string) {
-  if (!query || query.trim().length === 0) {
-    return await fetchEntries();
-  }
 
-  try {
-    const entries = await searchEntriesAsync(query.trim());
-    return { success: true, data: entries };
-  } catch (error) {
-    debug.error('搜索记录失败:', error);
-    return { success: false, error: '搜索记录失败', data: [] };
-  }
-}
-
-
-
-// 快速搜索（用于实时搜索建议）
-export async function quickSearchAction(query: string, limit = 5) {
-  if (!query || query.trim().length === 0) {
-    return { success: true, data: [] };
-  }
-
-  try {
-    const entries = quickSearch(query.trim(), limit);
-    return { success: true, data: entries };
-  } catch (error) {
-    debug.error('快速搜索失败:', error);
-    return { success: false, error: '快速搜索失败', data: [] };
-  }
-}
-
-// 获取搜索统计信息
-export async function getSearchStatsAction() {
-  try {
-    const stats = getSearchStats();
-    return { success: true, data: stats };
-  } catch (error) {
-    debug.error('获取搜索统计失败:', error);
-    return { 
-      success: false, 
-      error: '获取搜索统计失败',
-      data: {
-        topProjects: [],
-        topPeople: [],
-        importanceDistribution: []
-      }
-    };
-  }
-}
 
 // 删除记录
 export async function removeEntry(id: number) {
@@ -571,16 +521,7 @@ export async function getKnowledgeStatsAction() {
   }
 }
 
-// 搜索知识库
-export async function searchKnowledgeBaseAction(query: string) {
-  try {
-    const results = searchKnowledgeBase(query);
-    return { success: true, data: results };
-  } catch (error) {
-    debug.error('搜索知识库失败:', error);
-    return { success: false, error: '搜索知识库失败', data: [] };
-  }
-}
+
 
 // =============数据导出相关操作=============
 
@@ -698,113 +639,7 @@ export async function quickHealthCheckAction() {
   }
 }
 
-// =============搜索历史相关操作=============
 
-// 保存搜索历史记录
-export async function saveSearchHistoryAction(
-  query: string, 
-  searchOptions: Record<string, unknown>, 
-  resultCount: number, 
-  searchTimeMs: number
-) {
-  try {
-    const historyItem = saveSearchHistory(query, searchOptions, resultCount, searchTimeMs);
-    return { success: true, data: historyItem };
-  } catch (error) {
-    debug.error('保存搜索历史失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '保存搜索历史失败' 
-    };
-  }
-}
-
-// 获取搜索历史记录
-export async function getSearchHistoryAction(limit = 20) {
-  try {
-    const history = getSearchHistory(limit);
-    return { success: true, data: history };
-  } catch (error) {
-    debug.error('获取搜索历史失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '获取搜索历史失败',
-      data: []
-    };
-  }
-}
-
-// 获取热门搜索
-export async function getPopularSearchesAction(limit = 10) {
-  try {
-    const popular = getPopularSearches(limit);
-    return { success: true, data: popular };
-  } catch (error) {
-    debug.error('获取热门搜索失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '获取热门搜索失败',
-      data: []
-    };
-  }
-}
-
-// 切换收藏搜索状态
-export async function toggleFavoriteSearchAction(id: number) {
-  try {
-    const success = toggleFavoriteSearch(id);
-    return { success, data: { favoriteToggled: success } };
-  } catch (error) {
-    debug.error('切换收藏状态失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '切换收藏状态失败' 
-    };
-  }
-}
-
-// 获取收藏的搜索
-export async function getFavoriteSearchesAction() {
-  try {
-    const favorites = getFavoriteSearches();
-    return { success: true, data: favorites };
-  } catch (error) {
-    debug.error('获取收藏搜索失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '获取收藏搜索失败',
-      data: []
-    };
-  }
-}
-
-// 删除搜索历史记录
-export async function deleteSearchHistoryAction(id: number) {
-  try {
-    const success = deleteSearchHistory(id);
-    return { success, data: { deleted: success } };
-  } catch (error) {
-    debug.error('删除搜索历史失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '删除搜索历史失败' 
-    };
-  }
-}
-
-// 清空搜索历史（保留收藏）
-export async function clearSearchHistoryAction() {
-  try {
-    const deletedCount = clearSearchHistory();
-    return { success: true, data: { deletedCount } };
-  } catch (error) {
-    debug.error('清空搜索历史失败:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : '清空搜索历史失败' 
-    };
-  }
-}
 
 
 

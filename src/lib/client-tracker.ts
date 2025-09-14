@@ -94,20 +94,7 @@ export const trackEvent = {
   },
 
   // 搜索行为追踪
-  async search(query: string, resultCount: number): Promise<void> {
-    try {
-      await fetch('/api/tracking', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'search',
-          data: { query, resultCount, timestamp: Date.now() }
-        })
-      });
-    } catch (error) {
-      debug.warn('搜索行为追踪失败:', error);
-    }
-  }
+
 };
 
 // 默认导出

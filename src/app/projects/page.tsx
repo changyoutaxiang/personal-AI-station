@@ -3,20 +3,14 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { Toaster, toast } from 'react-hot-toast';
-import { Brain, MessageCircle, CheckSquare, Settings, BarChart3, Code, Timer } from 'lucide-react';
-import { PomodoroTimer } from '@/components/todos/PomodoroTimer';
-import { ThemeProvider } from '@/components/todos/ThemeProvider';
+import { Brain, MessageCircle, Settings, BarChart3, Code, FolderKanban, Calendar, TrendingDown } from 'lucide-react';
 import { ProjectList } from '@/components/projects/ProjectList';
 import { ProjectForm } from '@/components/projects/ProjectForm';
-import { useLocalStorage } from '@/hooks/todos/useLocalStorage';
 import { ProjectService } from '@/lib/services/projectService';
 import { Project, ProjectWithStats, CreateProjectRequest } from '@/types/project';
-import { Theme } from '@/types/todo';
 
 function ProjectsPageContent() {
   const router = useRouter();
-  const [showPomodoro, setShowPomodoro] = useState(false);
-  const [theme, setTheme] = useLocalStorage<Theme>('theme', 'sunset');
   
   // 项目管理状态
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
@@ -39,12 +33,6 @@ function ProjectsPageContent() {
       color: 'from-green-500 to-teal-600'
     },
     {
-      icon: CheckSquare,
-      label: '待办',
-      href: '/todos',
-      color: 'from-orange-500 to-red-600'
-    },
-    {
       icon: Code,
       label: 'HTML渲染',
       href: '/html-renderer',
@@ -61,13 +49,6 @@ function ProjectsPageContent() {
       label: '设置',
       href: '/records?tab=config',
       color: 'from-gray-500 to-slate-600'
-    },
-    {
-      icon: Timer,
-      label: '番茄钟',
-      href: '#',
-      color: 'from-red-500 to-orange-600',
-      onClick: () => setShowPomodoro(!showPomodoro)
     }
   ];
 
@@ -199,7 +180,7 @@ function ProjectsPageContent() {
             return (
               <button
                 key={item.href}
-                onClick={item.onClick || (() => router.push(item.href))}
+                onClick={() => router.push(item.href)}
                 className={`group relative p-3 rounded-xl backdrop-blur-md border transition-all duration-300 hover:scale-105`}
                 style={{
                   backgroundColor: 'var(--card-glass)',
@@ -229,12 +210,83 @@ function ProjectsPageContent() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 pt-16 md:pt-20 pb-6 relative z-10">
         <header className="text-center mb-6 md:mb-8 px-2">
           <h1 className="text-3xl md:text-4xl font-bold mb-3 md:mb-4 leading-tight" style={{color: 'var(--text-primary)'}}>
-            项目管理
+            项目管理中心
           </h1>
           <p className="text-base md:text-lg opacity-80" style={{color: 'var(--text-secondary)'}}>
-            管理您的项目和任务，跟踪进度和成果
+            专业的项目管理工具套件，帮助您高效组织、追踪和完成项目目标
           </p>
         </header>
+
+        {/* 项目管理工具快速入口 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <button
+            onClick={() => router.push('/trello')}
+            className="group relative p-4 rounded-xl backdrop-blur-md border transition-all duration-300 hover:scale-105"
+            style={{
+              backgroundColor: 'var(--card-glass)',
+              borderColor: 'var(--card-border)',
+            }}
+          >
+            <FolderKanban className="w-8 h-8 mb-2 text-blue-500 mx-auto" />
+            <h3 className="font-semibold text-sm" style={{color: 'var(--text-primary)'}}>
+              Trello 看板
+            </h3>
+            <p className="text-xs opacity-70 mt-1" style={{color: 'var(--text-secondary)'}}>
+              可视化任务管理
+            </p>
+          </button>
+
+          <button
+            onClick={() => router.push('/trello/project-view?view=gantt')}
+            className="group relative p-4 rounded-xl backdrop-blur-md border transition-all duration-300 hover:scale-105"
+            style={{
+              backgroundColor: 'var(--card-glass)',
+              borderColor: 'var(--card-border)',
+            }}
+          >
+            <Calendar className="w-8 h-8 mb-2 text-green-500 mx-auto" />
+            <h3 className="font-semibold text-sm" style={{color: 'var(--text-primary)'}}>
+              甘特图
+            </h3>
+            <p className="text-xs opacity-70 mt-1" style={{color: 'var(--text-secondary)'}}>
+              时间轴视图
+            </p>
+          </button>
+
+          <button
+            onClick={() => router.push('/trello/project-view?view=burndown')}
+            className="group relative p-4 rounded-xl backdrop-blur-md border transition-all duration-300 hover:scale-105"
+            style={{
+              backgroundColor: 'var(--card-glass)',
+              borderColor: 'var(--card-border)',
+            }}
+          >
+            <TrendingDown className="w-8 h-8 mb-2 text-orange-500 mx-auto" />
+            <h3 className="font-semibold text-sm" style={{color: 'var(--text-primary)'}}>
+              燃尽图
+            </h3>
+            <p className="text-xs opacity-70 mt-1" style={{color: 'var(--text-secondary)'}}>
+              进度追踪
+            </p>
+          </button>
+
+          <button
+            onClick={() => router.push('/trello/project-view?view=dashboard')}
+            className="group relative p-4 rounded-xl backdrop-blur-md border transition-all duration-300 hover:scale-105"
+            style={{
+              backgroundColor: 'var(--card-glass)',
+              borderColor: 'var(--card-border)',
+            }}
+          >
+            <BarChart3 className="w-8 h-8 mb-2 text-purple-500 mx-auto" />
+            <h3 className="font-semibold text-sm" style={{color: 'var(--text-primary)'}}>
+              项目仪表板
+            </h3>
+            <p className="text-xs opacity-70 mt-1" style={{color: 'var(--text-secondary)'}}>
+              数据分析
+            </p>
+          </button>
+        </div>
 
         {/* 项目列表 */}
         <ProjectList
@@ -258,12 +310,6 @@ function ProjectsPageContent() {
         loading={formLoading}
       />
 
-      {/* 番茄钟组件 */}
-      <div className="absolute top-20 right-6 z-30">
-        <ThemeProvider theme={theme} setTheme={setTheme}>
-          <PomodoroTimer isVisible={showPomodoro} onToggle={() => setShowPomodoro(!showPomodoro)} />
-        </ThemeProvider>
-      </div>
 
       <Toaster 
         position="top-right"

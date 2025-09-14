@@ -9,7 +9,6 @@ export type BehaviorEventType =
   | 'content_create'     // 内容创建
   | 'content_edit'       // 内容编辑
   | 'content_delete'     // 内容删除
-  | 'search_query'       // 搜索查询
   | 'ai_interaction'     // AI功能交互
   | 'tag_usage'          // 标签使用
   | 'focus_session'      // 专注会话

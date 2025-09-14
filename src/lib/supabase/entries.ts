@@ -119,16 +119,6 @@ export async function getEntriesByDailyReportTag(dailyReportTag: string): Promis
 }
 
 // 搜索条目
-export async function searchEntries(query: string): Promise<DbResult<Entry[]>> {
-  const result = await supabase
-    .from('entries')
-    .select('*')
-    .textSearch('content', query)
-    .order('created_at', { ascending: false });
-
-  return handleDbError(result);
-}
-
 // 获取所有项目标签
 export async function getProjectTags(): Promise<DbResult<string[]>> {
   const result = await supabase

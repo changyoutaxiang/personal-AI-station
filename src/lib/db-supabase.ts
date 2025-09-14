@@ -8,7 +8,6 @@ import {
   createEntry as supabaseCreateEntry,
   updateEntry as supabaseUpdateEntry,
   deleteEntry as supabaseDeleteEntry,
-  searchEntries as supabaseSearchEntries,
   getEntriesByDateRange,
   getProjectTags,
   getEffortTags,
@@ -185,22 +184,7 @@ export async function deleteEntryAsync(id: number): Promise<void> {
   }
 }
 
-export function searchEntries(query: string): Entry[] {
-  throw new Error('searchEntries 现在是异步的，请使用 searchEntriesAsync');
-}
 
-export async function searchEntriesAsync(query: string): Promise<Entry[]> {
-  debug.log('🔍 Searching entries via Supabase...');
-
-  const result = await supabaseSearchEntries(query);
-
-  if (!result.success || !result.data) {
-    debug.log('❌ Failed to search entries:', result.error);
-    return [];
-  }
-
-  return result.data;
-}
 
 export function updateEntry(id: number, updates: UpdateEntryData): Entry {
   throw new Error('updateEntry 现在是异步的，请使用 updateEntryAsync');
@@ -329,36 +313,7 @@ export async function quickHealthCheck(): Promise<any> {
 
 // === 搜索历史（占位符实现）===
 
-export function saveSearchHistory(query: string): void {
-  debug.log('💾 saveSearchHistory - placeholder implementation');
-}
 
-export function getSearchHistory(): any[] {
-  debug.log('📚 getSearchHistory - placeholder implementation');
-  return [];
-}
-
-export function getPopularSearches(): any[] {
-  debug.log('📚 getPopularSearches - placeholder implementation');
-  return [];
-}
-
-export function toggleFavoriteSearch(query: string): void {
-  debug.log('⭐ toggleFavoriteSearch - placeholder implementation');
-}
-
-export function getFavoriteSearches(): any[] {
-  debug.log('⭐ getFavoriteSearches - placeholder implementation');
-  return [];
-}
-
-export function deleteSearchHistory(id: number): void {
-  debug.log('🗑️ deleteSearchHistory - placeholder implementation');
-}
-
-export function clearSearchHistory(): void {
-  debug.log('🗑️ clearSearchHistory - placeholder implementation');
-}
 
 // === 增强报告相关 ===
 

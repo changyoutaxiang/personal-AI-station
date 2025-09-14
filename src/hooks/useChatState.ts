@@ -36,8 +36,7 @@ export interface ChatState {
   conversationsLoading: boolean;
   error: string | null;
   
-  // 搜索和过滤
-  searchKeyword: string;
+  // 过滤
   historyLimit: number;
   
   // 标签相关
@@ -65,7 +64,7 @@ export interface ChatActions {
   // 设置操作
   setSelectedModel: (model: string) => void;
   setSelectedTemplate: (template: PromptTemplate | null) => void;
-  setSearchKeyword: (keyword: string) => void;
+
   setHistoryLimit: (limit: number) => void;
   
   // 数据加载
@@ -142,7 +141,7 @@ const initialState: ChatState = {
   conversationsLoading: true,
   foldersLoading: false,
   error: null,
-  searchKeyword: '',
+
   historyLimit: 20,
   tags: [],
   selectedTags: [],
@@ -179,9 +178,7 @@ export function useChatState(): ChatState & ChatActions {
       updateState({ conversationsLoading: true, error: null });
       const params = new URLSearchParams();
       
-      if (state.searchKeyword) {
-        params.append('keyword', state.searchKeyword);
-      }
+
       
       // 添加文件夹过滤参数
       if (state.selectedFolderId !== null) {
@@ -207,7 +204,7 @@ export function useChatState(): ChatState & ChatActions {
     } finally {
       updateState({ conversationsLoading: false });
     }
-  }, [state.searchKeyword, state.selectedTags, state.selectedFolderId, updateState, setError]);
+  }, [state.selectedTags, state.selectedFolderId, updateState, setError]);
   
   const loadMessages = useCallback(async (conversationId: number) => {
     // 防止无效的 conversationId
@@ -469,9 +466,7 @@ export function useChatState(): ChatState & ChatActions {
   }, [updateState, state.selectedTemplate, state.currentConversationId]);
   
   
-  const setSearchKeyword = useCallback((keyword: string) => {
-    updateState({ searchKeyword: keyword });
-  }, [updateState]);
+
   
   const setHistoryLimit = useCallback((limit: number) => {
     updateState({ historyLimit: limit });
@@ -630,7 +625,7 @@ export function useChatState(): ChatState & ChatActions {
   // 副作用：监听选中标签、搜索关键词和文件夹选择变化
   useEffect(() => {
     loadConversations();
-  }, [state.selectedTags, state.searchKeyword, state.selectedFolderId, loadConversations]);
+  }, [state.selectedTags, state.selectedFolderId, loadConversations]);
   
   // 副作用：当模板变化时更新系统提示
   useEffect(() => {
@@ -651,7 +646,7 @@ export function useChatState(): ChatState & ChatActions {
     batchDeleteMessages,
     setSelectedModel,
     setSelectedTemplate,
-    setSearchKeyword,
+
     setHistoryLimit,
     loadConversations,
     loadMessages,

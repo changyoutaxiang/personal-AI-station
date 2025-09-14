@@ -4,7 +4,7 @@ import React from 'react';
 import { Animated } from '../animations';
 
 export interface EmptyStateProps {
-  type: 'entries' | 'search' | 'behavior' | 'ai-analysis' | 'todos' | 'insights' | 'data-export' | 'weekly-report' | 'batch-operations' | 'generic' | 'loading' | 'error' | 'network-error' | 'database-error' | 'permission-denied' | 'partial-data';
+  type: 'entries' | 'behavior' | 'ai-analysis' | 'todos' | 'insights' | 'data-export' | 'weekly-report' | 'batch-operations' | 'generic' | 'loading' | 'error' | 'network-error' | 'database-error' | 'permission-denied' | 'partial-data';
   title?: string;
   description?: string;
   action?: {
@@ -33,14 +33,7 @@ const emptyStateConfig = {
     animation: 'thoughtBubble',
     gradient: 'from-blue-400 to-cyan-400'
   },
-  search: {
-    icon: '🔍',
-    title: '没有找到匹配的记录',
-    description: '尝试使用不同的关键词或检查拼写',
-    color: 'yellow',
-    animation: 'pulse',
-    gradient: 'from-yellow-400 to-orange-400'
-  },
+
   behavior: {
     icon: '📊',
     title: '暂无行为数据',

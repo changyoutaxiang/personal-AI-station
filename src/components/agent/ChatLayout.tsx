@@ -148,14 +148,14 @@ export default function ChatLayout() {
             <ChatSidebar
           conversations={chatState.conversations}
           currentConversation={currentConversation}
-          searchKeyword={chatState.searchKeyword}
+
           conversationsLoading={chatState.conversationsLoading}
           folders={chatState.folders}
           selectedFolderId={chatState.selectedFolderId}
           onSelectConversation={chatState.selectConversation}
           onCreateNewConversation={chatState.createNewConversation}
           onDeleteConversation={chatState.deleteConversation}
-          onSearchChange={chatState.setSearchKeyword}
+
           onCreateFolder={chatState.createFolder}
           onDeleteFolder={chatState.deleteFolder}
           onRenameFolder={chatState.renameFolder}

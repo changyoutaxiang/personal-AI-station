@@ -10,14 +10,14 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 interface ChatSidebarProps {
   conversations: Conversation[];
   currentConversation: Conversation | null;
-  searchKeyword: string;
+
   conversationsLoading: boolean;
   folders?: AgentFolder[];
   selectedFolderId?: string | null;
   onSelectConversation: (conversation: Conversation) => void;
   onCreateNewConversation: () => void;
   onDeleteConversation: (conversationId: number) => void;
-  onSearchChange: (keyword: string) => void;
+
   // 文件夹相关回调
   onCreateFolder?: (name: string, description?: string, color?: string) => void;
   onDeleteFolder?: (folderId: string) => void;
@@ -29,14 +29,14 @@ interface ChatSidebarProps {
 export default function ChatSidebar({
   conversations,
   currentConversation,
-  searchKeyword,
+
   conversationsLoading,
   folders,
   selectedFolderId,
   onSelectConversation,
   onCreateNewConversation,
   onDeleteConversation,
-  onSearchChange,
+
   onCreateFolder,
   onDeleteFolder,
   onRenameFolder,
@@ -69,7 +69,7 @@ export default function ChatSidebar({
   
   // 拖拽状态
   const [draggedConversation, setDraggedConversation] = useState<Conversation | null>(null);
-  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const [dragOverFolder, setDragOverFolder] = useState<string | number | null>(null);
 
   // 确认删除会话
   const confirmDelete = (conversation: Conversation) => {
@@ -185,7 +185,7 @@ export default function ChatSidebar({
   };
   
   // 文件夹重命名管理函数
-  const startRenameFolder = (folder: ConversationFolder) => {
+  const startRenameFolder = (folder: AgentFolder) => {
     setRenamingFolderId(folder.id);
     setRenameFolderName(folder.name);
   };
@@ -256,18 +256,7 @@ export default function ChatSidebar({
 
           {/* 搜索框 */}
           <div className="px-4 pb-4">
-            <input
-              type="text"
-              placeholder="搜索会话..."
-              value={searchKeyword}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full p-2.5 rounded-lg border transition-colors"
-              style={{
-                borderColor: 'var(--card-border)',
-                backgroundColor: 'var(--background)',
-                color: 'var(--text-primary)'
-              }}
-            />
+
           </div>
 
           {/* 文件夹管理区域 */}

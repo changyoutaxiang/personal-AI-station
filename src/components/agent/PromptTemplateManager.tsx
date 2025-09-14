@@ -121,7 +121,7 @@ function VariableModal({ template, onApply, onClose }: VariableModalProps) {
 export default function PromptTemplateManager({ onApplyTemplate, currentConversationId }: PromptTemplateManagerProps) {
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchKeyword, setSearchKeyword] = useState('');
+
   const [sortByFavorite, setSortByFavorite] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -188,8 +188,7 @@ export default function PromptTemplateManager({ onApplyTemplate, currentConversa
   // 筛选和排序模板
   const filteredTemplates = useMemo(() => {
     const result = templates.filter(template => 
-      template.name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      (template.description?.toLowerCase().includes(searchKeyword.toLowerCase()) || false)
+      true // 移除搜索过滤
     );
 
     if (sortByFavorite) {
@@ -203,7 +202,7 @@ export default function PromptTemplateManager({ onApplyTemplate, currentConversa
     }
 
     return result;
-  }, [templates, searchKeyword, sortByFavorite]);
+  }, [templates, sortByFavorite]);
 
   // 加载模板列表
   const loadTemplates = async () => {
@@ -458,18 +457,7 @@ export default function PromptTemplateManager({ onApplyTemplate, currentConversa
         {/* 头部操作区 */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex-1 max-w-md">
-            <input
-              type="text"
-              placeholder="搜索模板名称或描述..."
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg"
-              style={{
-                borderColor: 'var(--card-border)',
-                backgroundColor: 'var(--background)',
-                color: 'var(--text-primary)'
-              }}
-            />
+
           </div>
           <div className="flex gap-2">
             <button

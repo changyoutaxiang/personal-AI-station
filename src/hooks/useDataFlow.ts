@@ -66,7 +66,6 @@ export function useDataFlow(chatState: ChatState & ChatActions): DataFlowActions
       const stateToSave = {
         selectedModel: chatState.selectedModel,
         selectedTemplate: chatState.selectedTemplate,
-        searchKeyword: chatState.searchKeyword,
         historyLimit: chatState.historyLimit,
         lastSyncTime: state.lastSyncTime,
       };
@@ -92,9 +91,7 @@ export function useDataFlow(chatState: ChatState & ChatActions): DataFlowActions
           chatState.setSelectedTemplate(parsedState.selectedTemplate);
         }
 
-        if (parsedState.searchKeyword) {
-          chatState.setSearchKeyword(parsedState.searchKeyword);
-        }
+
         if (parsedState.historyLimit) {
           chatState.setHistoryLimit(parsedState.historyLimit);
         }
